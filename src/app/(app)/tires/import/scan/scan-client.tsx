@@ -227,7 +227,7 @@ export function ScanSerialClient({ models }: { models: ScanModelOption[] }) {
         <EmptyState
           icon={<ScanBarcode className="size-7" />}
           title="ยังไม่มีรุ่นยางที่บริษัทใช้ได้"
-          description="ต้องมีรุ่นยางก่อนถึงจะเพิ่มซีรีย์ได้ แจ้ง Dreammaker เปิดรุ่นให้บริษัท"
+          description="ต้องมีรุ่นยางก่อนถึงจะเพิ่มซีรีย์ได้ แจ้ง Austone Thailand เปิดรุ่นให้บริษัท"
         />
       </Card>
     )

@@ -687,9 +687,9 @@ export interface TreadHistogram {
 
 /** สีของชุดข้อมูล histogram */
 export const HISTOGRAM_COLORS: Record<HistogramSeriesKey, string> = {
-  brand1: '#0d6ee0',
-  brand2: '#d97706',
-  others: '#64748b',
+  brand1: '#d9c800',
+  brand2: '#2f2e2e',
+  others: '#a0a09f',
 }
 
 /** ป้ายช่อง histogram ของค่าดอกยาง (มม. เต็ม, ≥ HISTOGRAM_MAX_MM รวมเป็น "12+") */

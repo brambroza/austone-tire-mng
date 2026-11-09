@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/app-shell'
 import { TechniciansClient } from './technicians-client'
 import type { Profile } from '@/lib/database.types'
 
-export const metadata = { title: 'ช่างของบริษัท · Dream Tire' }
+export const metadata = { title: 'ช่างของบริษัท · Austone Tire' }
 
 export default async function TechniciansPage() {
   const { userId, company } = await requireSession(['admin'])

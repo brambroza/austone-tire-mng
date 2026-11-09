@@ -77,7 +77,7 @@ export default async function VehicleDetailPage({
         action={
           <Link
             href={`/service?vehicle=${v.id}`}
-            className="tap-target inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 text-[15px] font-medium text-white hover:bg-brand-700"
+            className="tap-target inline-flex items-center gap-2 rounded-xl bg-brand-400 px-4 text-[15px] font-medium text-ink-900 hover:bg-brand-500"
           >
             <Wrench className="size-4.5" />
             บันทึกถอด-ใส่ยาง

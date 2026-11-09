@@ -53,7 +53,7 @@ const CATEGORY_TONE: Record<AxleCategory, 'slate' | 'amber' | 'sky'> = {
 }
 
 /** CRUD ประเภทเพลา พร้อมตัวแก้ผังแบบเรียงเพลาหน้าไปหลัง */
-export function AxleTypesClient({ axleTypes }: { axleTypes: AxleTypeRow[] }) {
+export function AxleTypesClient({ axleTypes, readOnly = false }: { axleTypes: AxleTypeRow[]; /** true = ดูอย่างเดียว (เซล) */ readOnly?: boolean }) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<AxleTypeRow | null>(null)
@@ -167,12 +167,14 @@ export function AxleTypesClient({ axleTypes }: { axleTypes: AxleTypeRow[] }) {
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <Button onClick={openCreate}>
-          <Plus className="size-4.5" />
-          เพิ่มประเภทเพลา
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="mb-4 flex justify-end">
+          <Button onClick={openCreate}>
+            <Plus className="size-4.5" />
+            เพิ่มประเภทเพลา
+          </Button>
+        </div>
+      )}
 
       {pageError && (
         <div className="mb-4 flex items-start gap-2.5 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-inset ring-rose-200">
@@ -187,7 +189,7 @@ export function AxleTypesClient({ axleTypes }: { axleTypes: AxleTypeRow[] }) {
             icon={<GitBranch className="size-6" />}
             title="ยังไม่มีประเภทเพลา"
             description="เพิ่มประเภทเพลาเพื่อให้แอดมินเลือกใช้ตอนเพิ่มรถ"
-            action={<Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มประเภทเพลา</Button>}
+            action={!readOnly && <Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มประเภทเพลา</Button>}
           />
         ) : (
           <TableWrap>
@@ -243,6 +245,7 @@ export function AxleTypesClient({ axleTypes }: { axleTypes: AxleTypeRow[] }) {
                       </Td>
                       <Td>
                         <div className="flex items-center justify-end gap-1">
+                          {!readOnly && <>
                           <button
                             type="button"
                             onClick={() => openEdit(type)}
@@ -270,6 +273,7 @@ export function AxleTypesClient({ axleTypes }: { axleTypes: AxleTypeRow[] }) {
                           >
                             <Trash2 className="size-4.5" />
                           </button>
+                          </>}
                         </div>
                       </Td>
                     </tr>
@@ -337,7 +341,7 @@ export function AxleTypesClient({ axleTypes }: { axleTypes: AxleTypeRow[] }) {
                   className={cn(
                     'h-12 flex-1 rounded-xl border text-base font-semibold transition-all active:scale-[0.98]',
                     form.category === value
-                      ? 'border-brand-600 bg-brand-600 text-white'
+                      ? 'border-brand-400 bg-brand-400 text-ink-900'
                       : 'border-line bg-white text-ink-700 hover:border-brand-300 hover:bg-brand-50',
                   )}
                 >

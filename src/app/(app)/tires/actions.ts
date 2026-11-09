@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { AUSTONE_WRITE_ROLES, canEditCentral } from '@/lib/roles'
 import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
 import { resolveCompanyScope } from '@/lib/company-scope'
@@ -36,7 +37,7 @@ export async function createTire(
   const scope = await resolveCompanyScope(['admin'], companyId)
   if (!scope.ok) return scope
   if (
-    scope.session.profile.role !== 'super_admin' &&
+    !canEditCentral(scope.session.profile.role) &&
     !hasFeature(scope.session.company, 'tire_manual_add')
   ) {
     return { ok: false, error: featureLockedMessage('tire_manual_add') }
@@ -56,7 +57,7 @@ export async function createTire(
  * @param input ข้อมูลที่แก้ไข
  */
 export async function updateTire(id: string, input: TireInput): Promise<ActionResult> {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   const parsed = tireSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -87,7 +88,7 @@ export async function updateTire(id: string, input: TireInput): Promise<ActionRe
  * @param id รหัสยาง
  */
 export async function scrapTire(id: string): Promise<ActionResult> {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   const supabase = await createClient()
 
   const { data: tire } = await supabase.from('tires').select('status').eq('id', id).maybeSingle()
@@ -112,7 +113,7 @@ export async function scrapTire(id: string): Promise<ActionResult> {
  * @param id รหัสยาง
  */
 export async function restoreTire(id: string): Promise<ActionResult> {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -138,7 +139,7 @@ export async function restoreTire(id: string): Promise<ActionResult> {
 export async function getTireHistoryAction(
   tireId: string,
 ): Promise<ActionResult<TireEventRow[]>> {
-  await requireSession(['admin', 'technician', 'super_admin'])
+  await requireSession(['admin', 'technician', ...AUSTONE_WRITE_ROLES])
 
   const parsed = z.string().uuid('รหัสยางไม่ถูกต้อง').safeParse(tireId)
   if (!parsed.success) return zodFail(parsed.error)
@@ -174,8 +175,8 @@ export async function ensureBrandModel(
   companyId?: string,
 ): Promise<ActionResult<{ brandId: string; modelId: string | null }>> {
   void companyId
-  const session = await requireSession(['admin', 'super_admin'])
-  const isSuper = session.profile.role === 'super_admin'
+  const session = await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
+  const isSuper = canEditCentral(session.profile.role)
   if (!isSuper && !hasFeature(session.company, 'tire_catalog_own')) {
     return { ok: false, error: featureLockedMessage('tire_catalog_own') }
   }

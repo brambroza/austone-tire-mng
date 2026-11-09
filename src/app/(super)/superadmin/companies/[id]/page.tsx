@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AlertTriangle, CircleDot, Gauge, Truck, Users } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardBody, CardHeader, EmptyState, StatTile } from '@/components/ui'
 import { formatNumber, formatThaiDate } from '@/lib/utils'
@@ -18,7 +19,7 @@ export default async function CompanyOverviewPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_ROLES)
   const { id } = await params
   const supabase = await createClient()
 

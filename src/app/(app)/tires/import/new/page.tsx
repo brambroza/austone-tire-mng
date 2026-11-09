@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/app-shell'
 import { Badge, Card, EmptyState } from '@/components/ui'
 import { TireImportClient } from '../import-client'
 
-export const metadata = { title: 'นำเข้าซีรีย์ยาง · Dream Tire' }
+export const metadata = { title: 'นำเข้าซีรีย์ยาง · Austone Tire' }
 
 /**
  * หน้านำเข้าซีรีย์ยางจากไฟล์ (แอดมินบริษัท) — เปิดเฉพาะแพ็กเกจ Premium
@@ -39,7 +39,7 @@ export default async function TireImportPage() {
 
       {unlocked ? (
         <TireImportClient
-          companyName={company?.name ?? 'Dream Tire'}
+          companyName={company?.name ?? 'Austone Tire'}
           basePath="/tires"
           historyPath="/tires/import"
         />
@@ -52,7 +52,7 @@ export default async function TireImportPage() {
             action={
               <Link
                 href="/tires"
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-600 px-5 text-[15px] font-medium text-white hover:bg-brand-700"
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-400 px-5 text-[15px] font-medium text-ink-900 hover:bg-brand-500"
               >
                 <ArrowLeft className="size-5" />
                 กลับไปคลังยาง

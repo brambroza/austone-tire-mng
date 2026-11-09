@@ -18,11 +18,12 @@ import {
   createCompany, setCompanyActive, setCompanyPlan, updateCompany,
   type CompanyPlanInput, type SuperCompanyInput,
 } from '../actions'
-import type { Company, CompanyPlan } from '@/lib/database.types'
+import type { Company, CompanyPlan, Shop } from '@/lib/database.types'
 
 const EMPTY: SuperCompanyInput = {
   code: '',
   name: '',
+  shop_id: '',
   tax_id: '',
   phone: '',
   email: '',
@@ -41,6 +42,8 @@ export interface CompanyRow extends Company {
   vehicle_count: number
   tire_count: number
   user_count: number
+  /** ชื่อร้านค้าที่ดูแล (null = ลูกค้าตรง) */
+  shop_name: string | null
 }
 
 /**
@@ -104,7 +107,7 @@ function PlanFields({
 }
 
 /** ตารางลูกค้า + ฟอร์มเพิ่ม/แก้ไข (super admin) */
-export function CompaniesClient({ companies }: { companies: CompanyRow[] }) {
+export function CompaniesClient({ companies, shops, readOnly = false }: { companies: CompanyRow[]; shops: Shop[]; /** true = ดูอย่างเดียว (เซล) */ readOnly?: boolean }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   /** กำลังค้นหาอยู่ — ใช้เลือกข้อความ empty state ให้ตรงสถานการณ์ */
@@ -136,6 +139,7 @@ export function CompaniesClient({ companies }: { companies: CompanyRow[] }) {
     setForm({
       code: c.code,
       name: c.name,
+      shop_id: c.shop_id ?? '',
       tax_id: c.tax_id ?? '',
       phone: c.phone ?? '',
       email: c.email ?? '',
@@ -212,10 +216,12 @@ export function CompaniesClient({ companies }: { companies: CompanyRow[] }) {
     <>
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <SearchInput placeholder="ค้นหาชื่อบริษัท, รหัส, ผู้ติดต่อ, เบอร์โทร..." className="sm:max-w-md" />
-        <Button onClick={openCreate} className="sm:ml-auto">
-          <Plus className="size-4.5" />
-          เพิ่มลูกค้าใหม่
-        </Button>
+        {!readOnly && (
+          <Button onClick={openCreate} className="sm:ml-auto">
+            <Plus className="size-4.5" />
+            เพิ่มลูกค้าใหม่
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -230,17 +236,18 @@ export function CompaniesClient({ companies }: { companies: CompanyRow[] }) {
             <EmptyState
               icon={<Building2 className="size-6" />}
               title="ยังไม่มีลูกค้าในระบบ"
-              action={<Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มลูกค้าใหม่</Button>}
+              action={!readOnly && <Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มลูกค้าใหม่</Button>}
             />
           )
         ) : (
           <TableWrap>
-            <Table className="min-w-[1000px]">
+            <Table className="min-w-[1100px]">
               <thead>
                 <tr>
                   <Th>บริษัท</Th>
                   <Th>รหัส</Th>
                   <Th>ผู้ติดต่อ</Th>
+                  <Th>ร้านค้า</Th>
                   <Th className="text-right">ผู้ใช้</Th>
                   <Th className="text-right">รถ</Th>
                   <Th className="text-right">ยาง</Th>
@@ -264,6 +271,7 @@ export function CompaniesClient({ companies }: { companies: CompanyRow[] }) {
                     </Td>
                     <Td><Badge tone="brand">{c.code}</Badge></Td>
                     <Td>{c.contact_name ?? '-'}</Td>
+                    <Td>{c.shop_name ? <Badge tone="sky">{c.shop_name}</Badge> : <span className="text-ink-400">ลูกค้าตรง</span>}</Td>
                     <Td className="text-right">
                       <Link
                         href={`/superadmin/companies/${c.id}/users`}
@@ -297,6 +305,7 @@ export function CompaniesClient({ companies }: { companies: CompanyRow[] }) {
                         >
                           <UserPlus className="size-4.5" />
                         </Link>
+                        {!readOnly && <>
                         <button
                           type="button" onClick={() => openPlan(c)} aria-label="เปลี่ยนแพ็กเกจ"
                           title="เปลี่ยนแพ็กเกจการใช้งาน"
@@ -317,6 +326,7 @@ export function CompaniesClient({ companies }: { companies: CompanyRow[] }) {
                         >
                           {c.is_active ? <PowerOff className="size-4.5" /> : <Power className="size-4.5" />}
                         </button>
+                        </>}
                       </div>
                     </Td>
                   </tr>
@@ -385,6 +395,19 @@ export function CompaniesClient({ companies }: { companies: CompanyRow[] }) {
 
           <Field label="ที่อยู่">
             <Textarea value={form.address ?? ''} onChange={(e) => set('address', e.target.value)} />
+          </Field>
+
+          <Field
+            label="ร้านค้าที่ดูแล"
+            hint="เลือกเมื่อบริษัทนี้เปลี่ยนยางผ่านร้านค้า — ร้านจะเห็นและบันทึกงานให้บริษัทนี้ได้ (เว้นว่าง = ลูกค้าตรง)"
+            error={fieldErrors.shop_id}
+          >
+            <Select value={form.shop_id ?? ''} onChange={(e) => set('shop_id', e.target.value)}>
+              <option value="">ไม่ผ่านร้านค้า (ลูกค้าตรง)</option>
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>{shop.name}{shop.is_active ? '' : ' (ปิดใช้งาน)'}</option>
+              ))}
+            </Select>
           </Field>
 
           <div className="grid gap-5 sm:grid-cols-2">

@@ -1,13 +1,14 @@
 import { PageHeader } from '@/components/app-shell'
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES, canEditCentral } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { AxleTypesClient, type AxleTypeRow } from './axle-types-client'
 import type { AxleType } from '@/lib/database.types'
 
-export const metadata = { title: 'ประเภทเพลา · Dream Tire Admin' }
+export const metadata = { title: 'ประเภทเพลา · Austone Tire Admin' }
 
 export default async function AxleTypesPage() {
-  await requireSession(['super_admin'])
+  const { profile } = await requireSession(AUSTONE_ROLES)
   const supabase = await createClient()
 
   const [{ data: axleTypeData }, { data: vehicleData }] = await Promise.all([
@@ -31,7 +32,7 @@ export default async function AxleTypesPage() {
         title="ประเภทเพลา"
         subtitle="ชื่อ จำนวนเพลา และผังล้อที่ใช้ตอนเพิ่มรถและถอด-ใส่ยาง ลูกค้าเห็นเฉพาะประเภทที่เปิดสิทธิ์ให้ในแท็บสิทธิ์เพลาของบริษัทนั้น"
       />
-      <AxleTypesClient axleTypes={axleTypes} />
+      <AxleTypesClient axleTypes={axleTypes} readOnly={!canEditCentral(profile.role)} />
     </>
   )
 }

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, LogOut, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { Menu, X, LogOut, ChevronRight, PanelLeftClose, PanelLeftOpen, Star } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/database.types'
 
@@ -16,9 +16,12 @@ export interface NavItem {
 }
 
 const ROLE_LABEL: Record<UserRole, string> = {
-  super_admin: 'ผู้ดูแลระบบ (Dreammaker)',
+  super_admin: 'ผู้ดูแลระบบ (Austone Thailand)',
   admin: 'แอดมินบริษัท',
   technician: 'ช่าง',
+  shop: 'ร้านค้า',
+  austone_admin: 'แอดมิน',
+  sales: 'เซล',
 }
 
 /** key ที่เก็บสถานะย่อ/ขยาย sidebar ไว้ในเครื่องของผู้ใช้ */
@@ -104,12 +107,12 @@ export function AppShell({
   const renderSidebar = (compact: boolean) => (
     <div className="flex h-full flex-col">
       <div className={cn('flex items-center gap-3 py-5', compact ? 'flex-col px-2' : 'px-5')}>
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white shadow-[0_8px_20px_-8px_rgba(13,110,224,0.9)]">
-          D
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-ink-900 shadow-[0_8px_20px_-8px_rgba(26,26,26,0.5)]">
+          <Star className="size-5 fill-brand-500 text-brand-500" strokeWidth={1.5} />
         </div>
         {!compact && (
           <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-ink-900">Dream Tire</p>
+            <p className="truncate text-[15px] font-semibold text-ink-900">Austone Tire</p>
             <p className="truncate text-xs text-ink-400">ระบบจัดการยางรถบรรทุก</p>
           </div>
         )}
@@ -152,11 +155,11 @@ export function AppShell({
                 'tap-target group flex items-center rounded-xl text-[15px] font-medium transition-colors',
                 compact ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5',
                 active
-                  ? 'bg-brand-600 text-white shadow-[0_8px_20px_-12px_rgba(13,110,224,1)]'
+                  ? 'bg-brand-400 text-ink-900 shadow-[0_8px_20px_-12px_rgba(245,233,7,0.6)]'
                   : 'text-ink-700 hover:bg-brand-50 active:bg-brand-100',
               )}
             >
-              <span className={cn('shrink-0', active ? 'text-white' : 'text-brand-500')}>{item.icon}</span>
+              <span className={cn('shrink-0', active ? 'text-ink-900' : 'text-brand-600')}>{item.icon}</span>
               {!compact && (
                 <>
                   <span className="truncate">{item.label}</span>
@@ -236,7 +239,7 @@ export function AppShell({
 
           <div className="min-w-0">
             <p className="truncate text-[15px] font-semibold text-ink-900">
-              {currentSection?.label ?? 'Dream Tire'}
+              {currentSection?.label ?? 'Austone Tire'}
             </p>
             <p className="truncate text-xs text-ink-400">{companyName ?? ROLE_LABEL[role]}</p>
           </div>

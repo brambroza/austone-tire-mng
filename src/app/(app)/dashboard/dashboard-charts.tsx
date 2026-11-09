@@ -8,19 +8,19 @@ import type { MonthPoint } from '@/components/charts'
 
 /** สีที่ใช้เฉพาะหน้า dashboard — ผ่านการตรวจ colorblind-safe แล้ว */
 const COLOR = {
-  mount: '#0d57b4',   // น้ำเงิน = ใส่ยาง
+  mount: '#d9c800',   // เหลือง = ใส่ยาง
   unmount: '#c2410c', // ส้ม = ถอดยาง
   mounted: '#15803d', // เขียว = ใช้งานอยู่
   inStock: '#0369a1', // ฟ้า = อยู่ในคลัง
   scrapped: '#be123c', // แดง = ตัดจำหน่าย
-  ink: '#0f1c2e',
-  ink2: '#33465e',
-  grid: '#c9d6e6',
+  ink: '#1a1a1a',
+  ink2: '#605e5e',
+  grid: '#e4e4e3',
 } as const
 
 const TOOLTIP_STYLE = {
   borderRadius: 12,
-  border: '1px solid #c9d6e6',
+  border: '1px solid #e4e4e3',
   boxShadow: '0 8px 24px -12px rgba(15,28,46,0.3)',
   fontSize: 15,
   color: COLOR.ink,
@@ -54,7 +54,7 @@ export function DashboardMonthlyChart({ data }: { data: MonthPoint[] }) {
             tickLine={false}
           />
           <YAxis tick={{ fontSize: 14, fill: COLOR.ink2 }} axisLine={false} tickLine={false} allowDecimals={false} />
-          <Tooltip cursor={{ fill: '#f3f6fa' }} contentStyle={TOOLTIP_STYLE} />
+          <Tooltip cursor={{ fill: '#f6f6f2' }} contentStyle={TOOLTIP_STYLE} />
           <Legend iconType="square" iconSize={14} wrapperStyle={{ fontSize: 15, fontWeight: 600, color: COLOR.ink2 }} />
           <Bar dataKey="mount" name="ใส่ยาง" fill={COLOR.mount} radius={[4, 4, 0, 0]} maxBarSize={34}>
             <LabelList dataKey="mount" position="top" style={{ fontSize: 14, fontWeight: 700, fill: COLOR.ink }} />

@@ -12,18 +12,18 @@ import {
 
 /** สีกลางของหน้ารายงาน — โทนเดียวกับ dashboard */
 const COLOR = {
-  brand: '#0d6ee0',
+  brand: '#d9c800',
   recorded: '#059669',
   notRecorded: '#cbd5e1',
   alertLine: '#dc2626',
-  ink: '#0f1c2e',
-  ink2: '#33465e',
-  grid: '#c9d6e6',
+  ink: '#1a1a1a',
+  ink2: '#605e5e',
+  grid: '#e4e4e3',
 } as const
 
 const TOOLTIP_STYLE = {
   borderRadius: 12,
-  border: '1px solid #c9d6e6',
+  border: '1px solid #e4e4e3',
   boxShadow: '0 8px 24px -12px rgba(15,28,46,0.3)',
   fontSize: 15,
   color: COLOR.ink,
@@ -124,7 +124,7 @@ export function AxleTypeBarChart({ data }: { data: Array<{ code: string; name: s
             tickLine={false}
           />
           <Tooltip
-            cursor={{ fill: '#f3f6fa' }}
+            cursor={{ fill: '#f6f6f2' }}
             contentStyle={TOOLTIP_STYLE}
             formatter={(v) => [`${formatNumber(Number(v))} คัน`, 'จำนวนรถ']}
           />
@@ -174,7 +174,7 @@ export function TrendChart({ data }: { data: TrendPoint[] }) {
           />
           <YAxis tick={{ fontSize: 14, fill: COLOR.ink2 }} axisLine={false} tickLine={false} allowDecimals={false} unit=" คัน" width={72} />
           <Tooltip
-            cursor={{ fill: '#f3f6fa' }}
+            cursor={{ fill: '#f6f6f2' }}
             contentStyle={TOOLTIP_STYLE}
             formatter={(v, n) => [`${formatNumber(Number(v))} คัน`, String(n ?? '')]}
           />
@@ -218,7 +218,7 @@ export function TreadHistogramChart({ data, alertTreadMm }: { data: TreadHistogr
           />
           <YAxis tick={{ fontSize: 14, fill: COLOR.ink2 }} axisLine={false} tickLine={false} allowDecimals={false} />
           <Tooltip
-            cursor={{ fill: '#f3f6fa' }}
+            cursor={{ fill: '#f6f6f2' }}
             contentStyle={TOOLTIP_STYLE}
             formatter={(v, n) => [`${formatNumber(Number(v))} เส้น`, String(n ?? '')]}
             labelFormatter={(label) => `ดอกยาง ${label} มม.`}

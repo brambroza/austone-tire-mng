@@ -4,7 +4,9 @@
  *   npx supabase gen types typescript --project-id <ref> > src/lib/database.types.ts
  */
 
-export type UserRole = 'super_admin' | 'admin' | 'technician'
+/** shop = พนักงานร้านค้าที่เปลี่ยนยางให้ลูกค้าหลายราย (migration 020) */
+/** super_admin / austone_admin / sales = ทีม Austone (migration 024) · admin / technician = บริษัทลูกค้าปลายทาง · shop = ร้านค้า/ดีลเลอร์ */
+export type UserRole = 'super_admin' | 'austone_admin' | 'sales' | 'admin' | 'technician' | 'shop'
 export type TireStatus = 'in_stock' | 'mounted' | 'scrapped' | 'retreading'
 export type TireEventType = 'mount' | 'unmount'
 export type AxleKind = 'single' | 'dual'
@@ -13,6 +15,21 @@ export type CompanyPlan = 'standard' | 'premium'
 
 /** หมวดของประเภทเพลาที่ช่างเลือกหน้างาน */
 export type AxleCategory = 'head' | 'trailer' | 'bus'
+
+/** ร้านค้าที่เปลี่ยนยางให้ลูกค้า (migration 021) */
+export type Shop = {
+  id: string
+  code: string
+  name: string
+  tax_id: string | null
+  phone: string | null
+  email: string | null
+  address: string | null
+  contact_name: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
 
 export type Company = {
   id: string
@@ -41,6 +58,11 @@ export type Company = {
   plan_expires_at: string | null
   /** รายชื่อสาขา/หน่วยงานที่แอดมินบริษัทตั้งไว้ ใช้เป็นตัวเลือกช่อง vehicles.branch */
   branches: string[]
+  /** ร้านค้าที่ดูแลบริษัทนี้ — null = ลูกค้าตรงของ Austone Thailand (migration 021) */
+  shop_id: string | null
+  /** token ของลิงก์ส่วนตัว /p/<token> ให้บริษัทดูประวัติยางโดยไม่ต้อง login — null = ยังไม่เปิด (migration 022) */
+  public_token: string | null
+  public_token_created_at: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -49,6 +71,8 @@ export type Company = {
 export type Profile = {
   id: string
   company_id: string | null
+  /** ร้านค้าที่สังกัด — มีค่าเฉพาะ role = 'shop' (migration 021) */
+  shop_id: string | null
   role: UserRole
   full_name: string
   phone: string | null
@@ -93,6 +117,13 @@ export type TireModel = {
 
 export type CompanyTireModel = {
   company_id: string
+  tire_model_id: string
+  created_at: string
+}
+
+/** รุ่นยางที่ Austone กำหนดให้ร้านค้าใส่ได้ (migration 022) */
+export type ShopTireModel = {
+  shop_id: string
   tire_model_id: string
   created_at: string
 }
@@ -291,21 +322,29 @@ type FK<Column extends string, Ref extends string, RefColumn extends string = 'i
 export interface Database {
   public: {
     Tables: {
+      shops: {
+        Row: Shop
+        Insert: Insert<Shop, Timestamps | 'code' | 'tax_id' | 'phone' | 'email' | 'address'
+          | 'contact_name' | 'is_active'>
+        Update: Partial<Shop>
+        Relationships: []
+      }
       companies: {
         Row: Company
         Insert: Insert<Company, Timestamps | 'code' | 'tax_id' | 'phone' | 'email' | 'address'
           | 'contact_name' | 'logo_url' | 'alert_km' | 'alert_tread_mm'
           | 'alert_change_count' | 'alert_change_days' | 'alert_lifetime_km'
           | 'avg_km_per_month' | 'estimate_max_days' | 'plan' | 'plan_expires_at' | 'branches'
-          | 'is_active'>
+          | 'shop_id' | 'public_token' | 'public_token_created_at' | 'is_active'>
         Update: Partial<Company>
-        Relationships: []
+        Relationships: [FK<'shop_id', 'shops'>]
       }
       profiles: {
         Row: Profile
-        Insert: Insert<Profile, 'created_at' | 'updated_at' | 'phone' | 'employee_no' | 'is_active'>
+        Insert: Insert<Profile, 'created_at' | 'updated_at' | 'phone' | 'employee_no' | 'is_active'
+          | 'company_id' | 'shop_id'>
         Update: Partial<Profile>
-        Relationships: [FK<'company_id', 'companies'>]
+        Relationships: [FK<'company_id', 'companies'>, FK<'shop_id', 'shops'>]
       }
       removal_reasons: {
         Row: RemovalReason
@@ -331,6 +370,12 @@ export interface Database {
         Insert: Insert<CompanyTireModel, 'created_at'>
         Update: Partial<CompanyTireModel>
         Relationships: [FK<'company_id', 'companies'>, FK<'tire_model_id', 'tire_models'>]
+      }
+      shop_tire_models: {
+        Row: ShopTireModel
+        Insert: Insert<ShopTireModel, 'created_at'>
+        Update: Partial<ShopTireModel>
+        Relationships: [FK<'shop_id', 'shops'>, FK<'tire_model_id', 'tire_models'>]
       }
       axle_types: {
         Row: AxleType
@@ -423,6 +468,21 @@ export interface Database {
           p_event_date?: string
         }
         Returns: string
+      }
+      shop_create_company: {
+        Args: {
+          p_name: string
+          p_contact_name?: string | null
+          p_phone?: string | null
+          p_tax_id?: string | null
+          p_address?: string | null
+        }
+        Returns: string
+      }
+      /** หน้า public /p/<token> — jsonb หรือ null เมื่อ token ไม่ถูกต้อง (migration 022) */
+      public_company_history: {
+        Args: { p_token: string }
+        Returns: unknown
       }
     }
     Enums: {

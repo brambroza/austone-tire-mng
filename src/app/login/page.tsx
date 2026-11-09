@@ -1,8 +1,9 @@
 import { Suspense } from 'react'
+import { Star } from 'lucide-react'
 import { LoginForm } from './login-form'
 import { LoginScene, TireMark } from './login-motion'
 
-export const metadata = { title: 'เข้าสู่ระบบ · Dream Tire' }
+export const metadata = { title: 'เข้าสู่ระบบ · Austone Tire' }
 
 const HIGHLIGHTS = [
   'เลือกตำแหน่งล้อจากแผนผังรถได้ทันที',
@@ -33,7 +34,7 @@ export default function LoginPage() {
               data-anim
               className="flex size-11 items-center justify-center rounded-2xl bg-white/10 text-lg font-semibold text-white ring-1 ring-inset ring-white/15 backdrop-blur"
             >
-              D
+              <Star className="size-5 fill-brand-500 text-brand-500" strokeWidth={1.5} />
             </div>
             <h2 data-anim className="mt-10 text-4xl font-semibold leading-[1.2] tracking-tight text-white">
               ระบบจัดการยาง
@@ -60,15 +61,15 @@ export default function LoginPage() {
           </ul>
 
           <p data-anim className="relative text-sm text-white/35">
-            © Dreammaker · Dream Tire Management
+            © Austone Thailand · Austone Tire Management
           </p>
         </aside>
 
         {/* ฝั่งขวา: ฟอร์ม */}
         <main className="flex items-center justify-center px-6 py-14 lg:bg-surface">
           <div className="w-full max-w-[22rem]">
-            <div data-anim className="mb-9 flex size-11 items-center justify-center rounded-2xl bg-brand-600 text-lg font-semibold text-white shadow-[0_10px_24px_-12px_rgba(13,110,224,0.9)] lg:hidden">
-              D
+            <div data-anim className="mb-9 flex size-11 items-center justify-center rounded-2xl bg-ink-900 shadow-[0_10px_24px_-12px_rgba(26,26,26,0.5)] lg:hidden">
+              <Star className="size-5 fill-brand-500 text-brand-500" strokeWidth={1.5} />
             </div>
             <h1 data-anim className="text-[26px] font-semibold tracking-tight text-ink-900">
               เข้าสู่ระบบ

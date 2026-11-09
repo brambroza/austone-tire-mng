@@ -1,8 +1,8 @@
-# Dream Tire — ระบบจัดการยางรถบรรทุก
+# Austone Tire — ระบบจัดการยางรถบรรทุก
 
 ระบบบันทึกการถอด-ใส่ยางรายเส้น ติดตามระยะใช้งาน และแจ้งเตือนเมื่อถึงเกณฑ์
 UI แบบ modern minimal โทนฟ้าอ่อน เน้นการใช้งานบน **iPad** สำหรับช่างหน้างาน
-ส่วน **Super Admin (Dreammaker)** ออกแบบสำหรับเดสก์ท็อป
+ส่วน **Super Admin (Austone Thailand)** ออกแบบสำหรับเดสก์ท็อป
 
 ## Tech stack
 
@@ -15,11 +15,16 @@ UI แบบ modern minimal โทนฟ้าอ่อน เน้นการ
 
 ## โครงสร้าง role
 
+ทีม Austone มี 3 ระดับ (migration 024/025): `super_admin` ทุกอย่าง + จัดการบัญชีทีมที่เมนู **ผู้ใช้งาน** · `austone_admin` ทุกอย่างยกเว้นจัดการทีม ·
+`sales` ดูได้ทุกหน้า + จัดการร้านค้า/ดีลเลอร์ (สร้าง/แก้ร้าน กำหนดรุ่นยาง บัญชีร้าน) ปุ่มแก้ข้อมูลกลางถูกซ่อน และ RLS/server action ปฏิเสธ
+กฎอยู่ใน [`src/lib/roles.ts`](src/lib/roles.ts) · ฝั่ง DB: `is_super_admin()` = super + austone_admin, `is_austone_staff()` = รวม sales, `is_true_super_admin()` = super เท่านั้น
+
 | Role | ใช้ที่ | สิทธิ์ |
 | --- | --- | --- |
-| `super_admin` (Dreammaker) | Desktop | CRUD ลูกค้า, ข้อมูลยางกลาง, ประเภทเพลา, สาเหตุการถอด, กำหนดว่าลูกค้าแต่ละรายเห็นยางรุ่นใด, ดูการใช้งานยางของลูกค้าทุกราย |
-| `admin` (แอดมินบริษัทลูกค้า) | iPad / Desktop | CRUD รถ, คลังยาง, จัดการช่างในบริษัท, แก้ข้อมูลบริษัทและเกณฑ์แจ้งเตือน, dashboard |
+| `super_admin` (Austone Thailand) | Desktop | CRUD ลูกค้า, ข้อมูลยางกลาง, ประเภทเพลา, สาเหตุการถอด, กำหนดว่าลูกค้าแต่ละรายเห็นยางรุ่นใด, ดูการใช้งานยางของลูกค้าทุกราย |
+| `admin` (แอดมินลูกค้า) | iPad / Desktop | CRUD รถ, คลังยาง, จัดการช่างในบริษัท, แก้ข้อมูลบริษัทและเกณฑ์แจ้งเตือน, dashboard |
 | `technician` (ช่าง) | iPad | บันทึกถอด / ใส่ / สลับตำแหน่งยาง, ค้นหารถและยาง |
+| `shop` (พนักงานร้านค้า) | iPad / Desktop | เพิ่มลูกค้าภายใต้ร้าน, บันทึกถอด-ใส่ยางให้รถของบริษัทเหล่านั้น (ใส่ได้เฉพาะ AUSTONE), รายงานการเปลี่ยนยางต่อบริษัท, สร้างบัญชีให้บริษัทเมื่อพร้อม |
 
 ## ติดตั้ง
 
@@ -54,18 +59,25 @@ SUPABASE_SERVICE_ROLE_KEY=     # ใช้เฉพาะฝั่ง server ต
 > ไฟล์ถัดมา `006`–`011` ดูหัวไฟล์แต่ละตัว และ `012_plans_import_branch.sql` (แพ็กเกจ Standard/Premium,
 > สาขาของรถ) — ถ้ายังไม่รัน 012 หน้านำเข้าซีรีย์ยาง รายงานรถ และช่องสาขาจะใช้ไม่ได้
 > ตรวจผลหลังรันด้วย `supabase/scripts/verify_012.sql`
+>
+> **ร้านค้า (shop)** ใช้ `020_shop_role.sql` (รันเดี่ยว ๆ ก่อน เพราะเพิ่มค่า enum) แล้วตามด้วย `021_shops.sql` และ `022_shop_catalog_public_links.sql`
+> **ทีม Austone (เซล/แอดมิน)** ใช้ `024_austone_roles.sql` (รันเดี่ยว ๆ — enum) แล้วตามด้วย `025_austone_roles_rls.sql`
+> ตรวจผลด้วย `supabase/scripts/verify_021.sql` / `verify_022.sql` — รายละเอียดการออกแบบอยู่ใน [`docs/shop-layer-plan.md`](docs/shop-layer-plan.md)
 4. สร้าง user แรกที่ Authentication → Add user แล้วผูก profile:
 
 ```sql
 insert into public.profiles (id, company_id, role, full_name)
-values ('<UUID จาก auth.users>', null, 'super_admin', 'Dreammaker Admin');
+values ('<UUID จาก auth.users>', null, 'super_admin', 'Austone Thailand Admin');
 ```
 
-จากนั้น login แล้วสร้างบริษัทลูกค้าและบัญชีแอดมิน/ช่างจากหน้า Super Admin ได้เลย
+จากนั้น login แล้วสร้างลูกค้าและบัญชีแอดมิน/ช่างจากหน้า Super Admin ได้เลย
 
 ## โมเดลข้อมูลหลัก
 
 ```
+shops ──────┬── profiles (role = shop) (พนักงานร้านค้า)
+            └── companies.shop_id     (บริษัทที่ร้านดูแล — null = ลูกค้าตรง)
+
 companies ──┬── profiles            (ผู้ใช้ + role)
             ├── vehicles            (รถ: ทะเบียน จังหวัด ยี่ห้อ/รุ่น ประเภทเพลา เลขไมล์)
             ├── tires               (ยางรายเส้น: เลขยาง สถานะ ตำแหน่ง ระยะสะสม ดอกยาง)
@@ -105,6 +117,23 @@ axle_types ── vehicles              (ประเภทเพลา + รู
 ที่ `/superadmin/companies/<id>/tires` และ `/superadmin/companies/<id>/tires/import`
 ยางที่ช่างคีย์หน้างานตอนถอด-ใส่ยังสร้างได้ทุกแพ็กเกจ (ผ่าน `insertStockTire` ใน [`src/lib/tire-stock.ts`](src/lib/tire-stock.ts))
 
+## ร้านค้า (shop) — เปลี่ยนยางให้ลูกค้าหลายราย
+
+Austone Thailand สร้างร้านที่เมนู **ร้านค้า/ดีลเลอร์** (`/superadmin/shops` — เมนูเดียวแทน "ข้อมูลลูกค้า" เดิม; ลูกค้าปลายทางทั้งหมดดูได้จากปุ่มในหน้านี้) และสร้างบัญชีพนักงานร้าน (role `shop`)
+จากนั้น **กำหนดรุ่นยาง** ที่ร้านใส่ให้ลูกค้าได้ที่ `/superadmin/shops/[id]/tires` (เลือกได้เฉพาะรุ่นกลางยี่ห้อ AUSTONE — ตาราง `shop_tire_models`)
+ร้านเข้าระบบแล้วเห็น 4 เมนู: **ลูกค้า** (เพิ่มด้วยชื่ออย่างเดียว ระบบเปิดสิทธิ์เพลาทุกแบบ + รุ่นที่ร้านได้รับให้),
+**บันทึกถอด-ใส่ยาง** (เลือกบริษัท → wizard เดียวกับช่าง แต่ใส่ได้เฉพาะรุ่นที่ Austone กำหนดให้ร้าน และติ๊ก "ไม่ทราบซีรีย์" ตอนถอดได้
+ระบบตั้งซีรีย์แทนเป็น `UNK-YYMMDD-XXXXX`), **รายงานการเปลี่ยนยาง** (กรองลูกค้า/ช่วงวันที่ ส่งออก Excel)
+และ **ช่างของร้าน** (ร้านเพิ่ม/แก้ไข/ตั้งรหัสผ่าน/ปิดใช้งาน/ลบบัญชีช่างของร้านเองได้ ทุกบัญชีร้านเป็น role `shop` เท่ากัน)
+
+**ลิงก์ส่วนตัวให้ลูกค้า (ไม่ต้อง login):** ที่หน้ารายละเอียดบริษัท ร้านกด "สร้างลิงก์" ได้ `/p/<token>` (token 32 ตัว, migration 022)
+ส่งให้ลูกค้าทาง Line แล้วเปิดดูประวัติถอด-ใส่ยางของรถตัวเองได้ทันที — หน้า public อ่านผ่าน RPC `public_company_history(token)` ตัวเดียว
+สร้างใหม่ = ลิงก์เดิมใช้ไม่ได้, ปิดลิงก์ได้ · ตั้ง `NEXT_PUBLIC_APP_URL` บน production เพื่อให้ลิงก์ถูก domain
+
+ข้อมูลยังแยกตาม `company_id` ของแต่ละบริษัทเหมือนเดิม — ร้านเข้าถึงได้เฉพาะบริษัทที่ `companies.shop_id` เป็นร้านตัวเอง
+(RLS ผ่าน `company_in_my_shop()`) บริษัทเข้าระบบแล้วเห็นรถ/ยาง/ประวัติของตัวเองในหน้าเดิมทุกอย่าง
+กฎร้านค้าอยู่ใน [`src/lib/shop-rules.ts`](src/lib/shop-rules.ts) และการตรวจสิทธิ์ใน [`src/lib/company-scope.ts`](src/lib/company-scope.ts)
+
 ## สาขา / หน่วยงานของรถ
 
 แอดมินบริษัทตั้งรายชื่อสาขาที่หน้า "ข้อมูลบริษัท" (`companies.branches`) แล้วเลือกให้รถแต่ละคัน (`vehicles.branch`)
@@ -141,7 +170,9 @@ src/
 │   │   ├── service/           ขั้นตอนบันทึกถอด-ใส่ยาง (หน้าหลักของช่าง)
 │   │   ├── technicians/       จัดการบัญชีช่างในบริษัท
 │   │   └── company/           แก้ข้อมูลบริษัท + เกณฑ์แจ้งเตือน
-│   └── (super)/superadmin/    ฝั่ง Dreammaker
+│   ├── (shop)/shop/           ฝั่งร้านค้า: ลูกค้า (+ลิงก์ลูกค้า) / บันทึกถอด-ใส่ยาง / รายงาน
+│   ├── (public)/p/[token]/    หน้าลูกค้าดูประวัติผ่านลิงก์ส่วนตัว ไม่ต้อง login
+│   └── (super)/superadmin/    ฝั่ง Austone Thailand (รวมเมนูร้านค้า)
 ├── components/                UI primitives, AppShell, ผังล้อ, กราฟ
 └── lib/                       supabase clients, auth, types, utils
 ```

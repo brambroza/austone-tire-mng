@@ -42,10 +42,13 @@ export function AxleAccessClient({
   companyId,
   axleTypes,
   allowed,
+  readOnly = false,
 }: {
   companyId: string
   axleTypes: AccessAxleType[]
   allowed: string[]
+  /** true = ดูอย่างเดียว (เซล) — ไม่มีปุ่มบันทึก */
+  readOnly?: boolean
 }) {
   const router = useRouter()
   const [selected, setSelected] = React.useState<Set<string>>(new Set(allowed))
@@ -114,9 +117,11 @@ export function AxleAccessClient({
                 บันทึกแล้ว
               </span>
             )}
-            <Button size="sm" onClick={handleSave} loading={saving}>
-              บันทึกสิทธิ์ ({selected.size})
-            </Button>
+            {!readOnly && (
+              <Button size="sm" onClick={handleSave} loading={saving}>
+                บันทึกสิทธิ์ ({selected.size})
+              </Button>
+            )}
           </div>
         }
       />
@@ -171,7 +176,7 @@ export function AxleAccessClient({
                         <span
                           className={cn(
                             'flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors',
-                            active ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300',
+                            active ? 'border-brand-400 bg-brand-400 text-ink-900' : 'border-slate-300',
                           )}
                         >
                           {active && <Check className="size-3.5" />}

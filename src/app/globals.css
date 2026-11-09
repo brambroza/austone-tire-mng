@@ -1,36 +1,46 @@
 @import "tailwindcss";
 
 /* ============================================================
-   DREAM TIRE — Design tokens
-   โทนฟ้าอ่อน modern minimal, ออกแบบ touch-first สำหรับ iPad
+   Austone Tire — Design tokens
+   อ้างอิง brand Austone Thailand: เหลืองเลมอน #F5E907 + ดำถ่าน #2F2E2E + ขาว
+   ปรับเป็นโทนพาสเทล minimal บนพื้นขาว, ออกแบบ touch-first สำหรับ iPad
+   - brand-300/400 = เหลืองพาสเทลสำหรับพื้นปุ่ม/แถบเลือก (ใช้คู่ตัวอักษร ink-900)
+   - brand-500     = เหลือง brand แท้ ใช้เป็น accent (focus ring, จุดเน้น, กราฟ)
+   - brand-600/700 = มัสตาร์ด/ทองแก่ สำหรับตัวอักษรและไอคอนบนพื้นขาว
    ============================================================ */
 @theme {
-  --color-brand-50:  #f0f8ff;
-  --color-brand-100: #dcefff;
-  --color-brand-200: #b9dfff;
-  --color-brand-300: #85c9ff;
-  --color-brand-400: #4aabff;
-  --color-brand-500: #1f8cf5;
-  --color-brand-600: #0d6ee0;
-  --color-brand-700: #0d57b4;
-  --color-brand-800: #114a90;
-  --color-brand-900: #143f76;
+  --color-brand-50:  #fefce6;
+  --color-brand-100: #fdf8c2;
+  --color-brand-200: #fbf27a;
+  --color-brand-300: #f9ee55;
+  --color-brand-400: #f7ec4a;
+  --color-brand-500: #f5e907;
+  --color-brand-600: #a3851a;
+  --color-brand-700: #806710;
+  --color-brand-800: #5e4c0c;
+  --color-brand-900: #3f3308;
 
-  --color-ink-900: #0f1c2e;
-  --color-ink-700: #2c405b;
-  --color-ink-500: #5b7089;
-  --color-ink-400: #8397ad;
+  --color-ink-50:  #fafaf9;
+  --color-ink-100: #f2f2f1;
+  --color-ink-200: #e4e4e3;
+  --color-ink-300: #cccccc;
+  --color-ink-400: #a0a09f;
+  --color-ink-500: #7a7878;
+  --color-ink-600: #605e5e;
+  --color-ink-700: #454444;
+  --color-ink-800: #2f2e2e;
+  --color-ink-900: #1a1a1a;
 
   --color-surface:     #ffffff;
-  --color-surface-alt: #f5f9ff;
-  --color-line:        #e3edf9;
+  --color-surface-alt: #fbfbf8;
+  --color-line:        #e8e8e4;
 
   --font-sans: var(--font-thai), ui-sans-serif, system-ui, sans-serif;
 
   --radius-card: 1rem;
 
-  --shadow-soft: 0 1px 2px rgba(15, 28, 46, 0.04), 0 8px 24px -12px rgba(15, 28, 46, 0.12);
-  --shadow-lift: 0 2px 4px rgba(15, 28, 46, 0.05), 0 18px 40px -18px rgba(15, 28, 46, 0.22);
+  --shadow-soft: 0 1px 2px rgba(26, 26, 26, 0.04), 0 8px 24px -12px rgba(26, 26, 26, 0.10);
+  --shadow-lift: 0 2px 4px rgba(26, 26, 26, 0.05), 0 18px 40px -18px rgba(26, 26, 26, 0.18);
 }
 
 @layer base {
@@ -41,7 +51,7 @@
 
   body {
     background:
-      radial-gradient(1200px 600px at 100% -10%, var(--color-brand-50), transparent 60%),
+      radial-gradient(1200px 600px at 100% -10%, var(--color-brand-100), transparent 60%),
       var(--color-surface-alt);
     color: var(--color-ink-900);
     font-family: var(--font-sans);
@@ -51,7 +61,7 @@
     overscroll-behavior-x: none;
   }
 
-  ::selection { background: var(--color-brand-200); }
+  ::selection { background: var(--color-brand-200); color: var(--color-ink-900); }
 
   /* scrollbar บาง ๆ ให้เข้ากับธีม */
   * { scrollbar-width: thin; scrollbar-color: var(--color-brand-200) transparent; }

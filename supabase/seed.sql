@@ -1,5 +1,5 @@
 -- ============================================================
--- DREAM TIRE MANAGEMENT — Seed data
+-- Austone Tire MANAGEMENT — Seed data
 -- รันหลัง schema.sql
 -- ============================================================
 
@@ -28,7 +28,7 @@ on conflict (code) do nothing;
 
 -- ยี่ห้อยางกลาง ------------------------------------------------
 insert into public.tire_brands (name) values
-  ('MICHELIN'), ('BRIDGESTONE'), ('OTANI'), ('DEESTONE'), ('YOKOHAMA')
+  ('AUSTONE'), ('MICHELIN'), ('BRIDGESTONE'), ('OTANI'), ('DEESTONE'), ('YOKOHAMA')
 on conflict (name) do nothing;
 
 -- รุ่นยางกลาง --------------------------------------------------
@@ -36,7 +36,7 @@ insert into public.tire_models (brand_id, name, size, pattern_code, new_tread_mm
 select b.id, m.name, m.size, m.pattern, m.new_tread_mm
 from public.tire_brands b
 join (values 
-  ('AUSTONE',       'OH-110',         '11R22.5',     'OH110',   16.0), 
+  ('AUSTONE',       'OH-110',         '11R22.5',     'OH110',   16.0)
 ) as m(brand, name, size, pattern, new_tread_mm) on m.brand = b.name
 on conflict (brand_id, name, size) do nothing;
 
@@ -50,7 +50,7 @@ on conflict (brand_id, name, size) do nothing;
 -- values ('DEMO', 'บริษัท เดโม ขนส่ง จำกัด', '02-000-0000', 10000);
 --
 -- insert into public.profiles (id, company_id, role, full_name) values
---   ('<UUID-SUPER>', null, 'super_admin', 'Dreammaker Admin');
+--   ('<UUID-SUPER>', null, 'super_admin', 'Austone Thailand Admin');
 --
 -- insert into public.profiles (id, company_id, role, full_name) values
 --   ('<UUID-ADMIN>', (select id from public.companies where code = 'DEMO'),

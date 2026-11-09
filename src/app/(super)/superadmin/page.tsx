@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Building2, CircleDot, Gauge, Truck } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
 import {
@@ -11,7 +12,7 @@ import { TirePerformanceReport } from './tire-performance-report'
 import type { ReportFilterOption, TirePerformanceRow } from './tire-performance-types'
 import type { Company, TireOverview, Vehicle } from '@/lib/database.types'
 
-export const metadata = { title: 'ภาพรวมระบบ · Dream Tire Admin' }
+export const metadata = { title: 'ภาพรวมระบบ · Austone Tire Admin' }
 
 interface RemovalEventRecord {
   id: string
@@ -57,7 +58,7 @@ async function loadAllRemovalEvents(supabase: Awaited<ReturnType<typeof createCl
 }
 
 export default async function SuperDashboardPage() {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_ROLES)
   const supabase = await createClient()
 
   const [
@@ -126,7 +127,7 @@ export default async function SuperDashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
-          label="บริษัทลูกค้า" value={formatNumber(companies.length)} unit="ราย"
+          label="ลูกค้า" value={formatNumber(companies.length)} unit="ราย"
           icon={<Building2 className="size-4.5" />}
         />
         <StatTile
@@ -154,8 +155,8 @@ export default async function SuperDashboardPage() {
         {summary.length === 0 ? (
           <EmptyState
             icon={<Building2 className="size-6" />}
-            title="ยังไม่มีบริษัทลูกค้าในระบบ"
-            description="เพิ่มลูกค้ารายแรกได้ที่เมนู “ข้อมูลลูกค้า”"
+            title="ยังไม่มีลูกค้าในระบบ"
+            description="เริ่มที่เมนู “ร้านค้า/ดีลเลอร์” — สร้างร้าน แล้วร้านเพิ่มลูกค้าปลายทางเอง"
           />
         ) : (
           <TableWrap>

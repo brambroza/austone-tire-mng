@@ -16,11 +16,11 @@ export interface VehiclesExportInput {
   axleTypes: readonly AxleTypeLayoutSource[]
 }
 
-const BRAND = '#0D6EE0'
-const BRAND_LIGHT = '#F0F8FF'
-const INK = '#0F1C2E'
-const MUTED = '#5B7089'
-const LINE = '#E3EDF9'
+const BRAND = '#1A1A1A'
+const BRAND_LIGHT = '#FEFCE6'
+const INK = '#1A1A1A'
+const MUTED = '#7A7878'
+const LINE = '#E8E8E4'
 
 /** แถวข้อมูลรถหนึ่งคันหลังแปลงค่าให้พร้อมแสดงผล (ใช้ร่วมกันทั้ง Excel และ PDF) */
 interface VehicleExportRow {
@@ -295,7 +295,7 @@ function createPdfPage(
     'box-sizing:border-box',
     'padding:38px 42px 30px',
     'background:#ffffff',
-    'color:#0f1c2e',
+    'color:#1a1a1a',
     `font-family:${getComputedStyle(document.body).fontFamily}`,
   ].join(';')
 
@@ -328,18 +328,18 @@ function createPdfPage(
     <style>
       * { box-sizing: border-box; }
       .heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
-      h1 { margin:0; font-size:25px; line-height:1.3; color:#0f1c2e; }
-      .meta { margin:7px 0 0; font-size:13px; color:#5b7089; }
-      .page-no { white-space:nowrap; font-size:12px; color:#8397ad; }
+      h1 { margin:0; font-size:25px; line-height:1.3; color:#1a1a1a; }
+      .meta { margin:7px 0 0; font-size:13px; color:#7a7878; }
+      .page-no { white-space:nowrap; font-size:12px; color:#a0a09f; }
       .metrics { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin:22px 0 18px; }
-      .metrics div { padding:13px 15px; border:1px solid #dcefff; border-radius:10px; background:#f0f8ff; }
-      .metrics span { display:block; font-size:12px; color:#5b7089; }
-      .metrics strong { display:block; margin-top:5px; font-size:18px; color:#0f1c2e; }
+      .metrics div { padding:13px 15px; border:1px solid #fbf27a; border-radius:10px; background:#fefce6; }
+      .metrics span { display:block; font-size:12px; color:#7a7878; }
+      .metrics strong { display:block; margin-top:5px; font-size:18px; color:#1a1a1a; }
       table { width:100%; margin-top:${pageNumber === 1 ? '0' : '22px'}; border-collapse:collapse; table-layout:fixed; }
-      th { padding:9px 7px; background:#0d6ee0; color:white; font-size:11px; text-align:left; }
-      td { padding:8px 7px; border-bottom:1px solid #e3edf9; font-size:11px; color:#2c405b; vertical-align:top; word-break:break-word; }
-      tbody tr:nth-child(even) { background:#f7fbff; }
-      .sub { color:#5b7089; font-size:10px; }
+      th { padding:9px 7px; background:#1a1a1a; color:white; font-size:11px; text-align:left; }
+      td { padding:8px 7px; border-bottom:1px solid #e8e8e4; font-size:11px; color:#454444; vertical-align:top; word-break:break-word; }
+      tbody tr:nth-child(even) { background:#fbfbf8; }
+      .sub { color:#7a7878; font-size:10px; }
       .number { text-align:right; }
       .ok { color:#047857; font-weight:600; }
       .warn { color:#b45309; font-weight:600; }
@@ -347,8 +347,8 @@ function createPdfPage(
       .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:10px; font-weight:600; }
       .ok-pill { background:#d1fae5; color:#047857; }
       .off-pill { background:#e2e8f0; color:#475569; }
-      .empty { padding:42px; text-align:center; color:#8397ad; }
-      .footer { margin-top:13px; text-align:right; font-size:10px; color:#8397ad; }
+      .empty { padding:42px; text-align:center; color:#a0a09f; }
+      .footer { margin-top:13px; text-align:right; font-size:10px; color:#a0a09f; }
     </style>
     <div class="heading">
       <div>
@@ -369,7 +369,7 @@ function createPdfPage(
       </tr></thead>
       <tbody>${rowHtml}</tbody>
     </table>
-    <div class="footer">Dream Tire Management · ${formatNumber(input.vehicles.length)} คัน</div>
+    <div class="footer">Austone Tire Management · ${formatNumber(input.vehicles.length)} คัน</div>
   `
   document.body.appendChild(page)
   return page

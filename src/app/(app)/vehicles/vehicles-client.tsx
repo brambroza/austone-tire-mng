@@ -70,7 +70,7 @@ export function VehiclesClient({
   enableLinks = true,
   enableHistory = false,
   changeAlertLabel,
-  companyName = 'Dream Tire',
+  companyName = 'Austone Tire',
 }: {
   vehicles: VehicleRow[]
   /** ประเภทเพลาจาก Supabase ใช้ทั้งชื่อ จำนวนล้อ และฟอร์มรถ */

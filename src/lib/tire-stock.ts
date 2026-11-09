@@ -124,7 +124,7 @@ export async function ensureBrandModelFor(
   if (modelError) {
     // unique (brand_id, name, size) ชน = มีรุ่นนี้ในแคตตาล็อกกลางแล้วแต่บริษัทยังไม่ได้รับสิทธิ์ (RLS เลยมองไม่เห็น)
     if ((modelError as { code?: string }).code === '23505') {
-      return { ok: false, error: `รุ่น ${name} ${model}${sizeValue ? ` ${sizeValue}` : ''} มีในแคตตาล็อกกลางแล้ว — แจ้ง Dreammaker เปิดสิทธิ์ให้บริษัท` }
+      return { ok: false, error: `รุ่น ${name} ${model}${sizeValue ? ` ${sizeValue}` : ''} มีในแคตตาล็อกกลางแล้ว — แจ้ง Austone Thailand เปิดสิทธิ์ให้บริษัท` }
     }
     return fail(modelError)
   }

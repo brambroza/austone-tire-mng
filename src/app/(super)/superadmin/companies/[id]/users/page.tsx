@@ -1,10 +1,11 @@
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES, canEditCentral } from '@/lib/roles'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { Card, CardHeader } from '@/components/ui'
 import { TechniciansClient, type MemberRow } from '@/app/(app)/technicians/technicians-client'
 import type { Profile } from '@/lib/database.types'
 
-export const metadata = { title: 'ผู้ใช้งานของลูกค้า · Dream Tire Admin' }
+export const metadata = { title: 'ผู้ใช้งานของลูกค้า · Austone Tire Admin' }
 
 /**
  * ดึงอีเมลเข้าสู่ระบบจาก auth.users ของผู้ใช้ตาม id ที่ระบุ
@@ -39,7 +40,7 @@ export default async function CompanyUsersPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const { userId } = await requireSession(['super_admin'])
+  const { userId, profile } = await requireSession(AUSTONE_ROLES)
   const { id } = await params
   const supabase = await createClient()
 
@@ -63,6 +64,7 @@ export default async function CompanyUsersPage({
         />
       </Card>
       <TechniciansClient
+        readOnly={!canEditCentral(profile.role)}
         members={members}
         currentUserId={userId}
         companyId={id}

@@ -6,10 +6,13 @@ import {
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
+import { resolveServiceScope } from '@/lib/company-scope'
 import { createClient } from '@/lib/supabase/server'
 import { ActionResult, fail, optionalNumber, optionalText, zodFail } from '@/lib/action-result'
-import { ensureBrandModelFor, insertStockTire } from '@/lib/tire-stock'
+import { ensureBrandModelFor, insertStockTire, resolveModelSnapshot } from '@/lib/tire-stock'
 import { isOtherBrand } from '@/lib/tire-import'
+import { SHOP_MOUNT_GRANT_MESSAGE, generateUnknownSerial, tireMatchesGrant, type ShopGrantTire } from '@/lib/shop-rules'
+import { loadShopMountGrant } from '@/lib/service-data'
 import {
   ODOMETER_DIGITS, ODOMETER_MAX, ODOMETER_MAX_MESSAGE,
   SERIAL_MAX, SERIAL_PATTERN, SERIAL_PATTERN_MESSAGE,
@@ -219,7 +222,17 @@ export async function replaceTireAction(
  * ============================================================ */
 
 const manualTireSchema = z.object({
-  serial_no: serialSchema,
+  /**
+   * ซีรีย์ยาง — เว้นว่างได้เฉพาะเมื่อ unknown_serial = true (ยางที่ถอดออกอ่านซีรีย์ไม่ได้)
+   * ระบบจะตั้งซีรีย์แทนให้ (UNK-...) ก่อนบันทึก
+   */
+  serial_no: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .max(SERIAL_MAX, `ซีรีย์ยางยาวได้ไม่เกิน ${SERIAL_MAX} ตัว`),
+  /** true = ไม่ทราบซีรีย์ของยางที่ถอดออก (ใช้ได้กับรายการถอดเท่านั้น) */
+  unknown_serial: z.boolean().optional(),
   tire_model_id: optionalText,
   brand_name: optionalText,
   model_name: optionalText,
@@ -230,6 +243,15 @@ const manualTireSchema = z.object({
   mounted_odometer: optionalNumber,
   /** หมายเหตุที่เก็บกับยางเส้นใหม่ (tires.note) เช่น ยี่ห้อ/รุ่นจริงของยาง "อื่นๆ" */
   note: optionalText,
+}).superRefine((data, ctx) => {
+  if (data.unknown_serial && data.serial_no === '') return
+  if (data.serial_no === '') {
+    ctx.addIssue({ code: 'custom', path: ['serial_no'], message: 'กรุณากรอกเลขยาง (ซีเรียล)' })
+    return
+  }
+  if (!SERIAL_PATTERN.test(data.serial_no)) {
+    ctx.addIssue({ code: 'custom', path: ['serial_no'], message: SERIAL_PATTERN_MESSAGE })
+  }
 })
 
 const batchItemSchema = z.object({
@@ -246,6 +268,8 @@ const batchItemSchema = z.object({
 })
 
 const batchSchema = z.object({
+  /** ลูกค้าที่ร้านค้าเลือก — แอดมิน/ช่างไม่ต้องส่ง (ใช้บริษัทตัวเองเสมอ) */
+  company_id: z.string().uuid().optional(),
   vehicle_id: z.string().uuid(),
   odometer: odometerSchema,
   event_date: z.string().min(1),
@@ -282,14 +306,63 @@ interface TireOp {
 export async function applyServiceBatchAction(
   input: ServiceBatchInput,
 ): Promise<ActionResult<{ count: number }>> {
-  const { profile } = await requireSession(['admin', 'technician'])
   const parsed = batchSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
+  // แอดมิน/ช่าง = บริษัทตัวเอง · ร้านค้า = ลูกค้าที่เลือก (ต้องอยู่ภายใต้ร้าน)
+  const scope = await resolveServiceScope(parsed.data.company_id)
+  if (!scope.ok) return scope
+
   const { vehicle_id, odometer, event_date, items } = parsed.data
   const supabase = await createClient()
-  /** บริษัทของผู้บันทึก — ยางที่ช่างคีย์หน้างานสร้างได้ทุกแพ็กเกจ */
-  const companyId = profile.company_id!
+  /** บริษัทเจ้าของรถ/ยาง — ยางที่ช่างคีย์หน้างานสร้างได้ทุกแพ็กเกจ */
+  const companyId = scope.companyId
+  /** กฎร้านค้า: ใส่ได้เฉพาะรุ่นที่ Austone กำหนดให้ร้าน (ยางที่ถอดออกเป็นยี่ห้อใดก็ได้) */
+  const shopRules = scope.isShop
+  const shopGrant = shopRules && scope.session.profile.shop_id
+    ? await loadShopMountGrant(supabase, scope.session.profile.shop_id)
+    : null
+
+  // รถต้องเป็นของบริษัทนี้จริง — ร้านค้าเห็นรถหลายบริษัท จึงกันส่ง vehicle_id ข้ามบริษัท
+  const { data: vehicleRow, error: vehicleError } = await supabase
+    .from('vehicles')
+    .select('id, company_id, is_active')
+    .eq('id', vehicle_id)
+    .maybeSingle()
+  if (vehicleError) return fail(vehicleError)
+  if (!vehicleRow || vehicleRow.company_id !== companyId) {
+    return { ok: false, error: 'ไม่พบรถคันนี้ในบริษัทที่เลือก' }
+  }
+  if (!vehicleRow.is_active) return { ok: false, error: 'รถคันนี้ถูกปิดใช้งานแล้ว' }
+
+  /**
+   * ตรวจว่ายาง/รุ่นที่จะใส่อยู่ในสิทธิ์ที่ Austone กำหนดให้ร้าน (เฉพาะเมื่อผู้บันทึกเป็นร้านค้า)
+   * @param tire รหัสรุ่น + snapshot ยี่ห้อ/รุ่นของยาง
+   * @param at ป้ายตำแหน่งรายการสำหรับข้อความผิดพลาด
+   */
+  function shopGrantViolation(tire: ShopGrantTire, at: string): ActionResult<never> | null {
+    if (!shopRules) return null
+    if (shopGrant && tireMatchesGrant(shopGrant, tire)) return null
+    return { ok: false, error: `${at}: ${SHOP_MOUNT_GRANT_MESSAGE}` }
+  }
+
+  /**
+   * ตั้งซีรีย์แทนให้ยางที่ถอดออกแต่อ่านซีรีย์ไม่ได้ — สุ่มใหม่ถ้าชนกับซีรีย์ที่มีอยู่ในบริษัทนี้
+   * @returns ซีรีย์ที่ไม่ซ้ำ หรือ null เมื่อสุ่มชนติดกันหลายครั้ง (แทบเป็นไปไม่ได้)
+   */
+  async function nextUnknownSerial(): Promise<string | null> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateUnknownSerial(new Date(`${event_date}T00:00:00`))
+      const { data: clash } = await supabase
+        .from('tires')
+        .select('id')
+        .eq('company_id', companyId)
+        .ilike('serial_no', candidate)
+        .maybeSingle()
+      if (!clash) return candidate
+    }
+    return null
+  }
 
   const preMounts: TireOp[] = []
   const unmounts: TireOp[] = []
@@ -324,13 +397,26 @@ export async function applyServiceBatchAction(
         return { ok: false, error: `${at}: เลขไมล์ตอนใส่ยางต้องไม่มากกว่าเลขไมล์ปัจจุบัน` }
       }
 
+      // ไม่ทราบซีรีย์ของยางที่ถอด → ตั้งซีรีย์แทน (UNK-...) เพื่อให้ยังมีประวัติการถอดและเหตุผล
+      let unmountSerial = manual.serial_no
+      if (manual.unknown_serial && unmountSerial === '') {
+        const generated = await nextUnknownSerial()
+        if (!generated) {
+          await rollbackCreatedTires()
+          return { ok: false, error: `${at}: ตั้งซีรีย์แทนไม่สำเร็จ กรุณาลองใหม่` }
+        }
+        unmountSerial = generated
+      }
+
       // ซีรีย์นี้อาจมีอยู่แล้วแต่หน้าช่างมองไม่เห็น (เช่น ตัดจำหน่ายแล้ว หรืออยู่ในคลัง)
       // ต้องใช้เส้นเดิม ไม่งั้นชน unique (company_id, serial_no) และประวัติยางขาดตอน
+      // จำกัดด้วย company_id เพราะร้านค้ามองเห็นยางของหลายบริษัท
       const { data: existingTire, error: existingError } = await supabase
         .from('tires')
         .select('id, serial_no, status, vehicle_id, position_code')
+        .eq('company_id', companyId)
         // ilike = ไม่สนตัวพิมพ์ ครอบคลุมยางเก่าที่บันทึกไว้เป็นตัวพิมพ์เล็กก่อน migration 008
-        .ilike('serial_no', manual.serial_no)
+        .ilike('serial_no', unmountSerial)
         .maybeSingle()
       if (existingError) {
         await rollbackCreatedTires()
@@ -381,7 +467,7 @@ export async function applyServiceBatchAction(
       }
 
       const created = await insertStockTire(supabase, companyId, {
-        serial_no: manual.serial_no,
+        serial_no: unmountSerial,
         tire_model_id: modelId,
         brand_name: manual.brand_name,
         model_name: manual.model_name,
@@ -389,7 +475,9 @@ export async function applyServiceBatchAction(
         dot: manual.dot,
         new_tread_mm: manual.new_tread_mm,
         tread_mm: item.tread_mm,
-        note: item.note,
+        note: manual.unknown_serial
+          ? ['ไม่ทราบซีรีย์ (ระบบตั้งให้)', item.note].filter(Boolean).join(' · ')
+          : item.note,
       })
       if (!created.ok) {
         await rollbackCreatedTires()
@@ -428,11 +516,18 @@ export async function applyServiceBatchAction(
         await rollbackCreatedTires()
         return { ok: false, error: `${at}: กรุณาเลือกตำแหน่งล้อที่จะใส่ยาง` }
       }
+      // ยางที่ใส่ต้องมีซีรีย์เสมอ — "ไม่ทราบซีรีย์" ใช้ได้เฉพาะยางที่ถอดออก
+      if (manual.serial_no === '') {
+        await rollbackCreatedTires()
+        return { ok: false, error: `${at}: กรุณากรอกซีรีย์ของยางที่จะใส่` }
+      }
 
       // เช็คซ้ำจากซีรีย์ยางอย่างเดียว — ครอบคลุมยางที่หน้าช่างมองไม่เห็น (เช่น ตัดจำหน่ายแล้ว)
+      // จำกัดด้วย company_id เพราะร้านค้ามองเห็นยางของหลายบริษัท
       const { data: existingTire, error: existingError } = await supabase
         .from('tires')
-        .select('id, serial_no, status, vehicle_id')
+        .select('id, serial_no, status, vehicle_id, brand_name, model_name, tire_model_id')
+        .eq('company_id', companyId)
         // ilike = ไม่สนตัวพิมพ์ ครอบคลุมยางเก่าที่บันทึกไว้เป็นตัวพิมพ์เล็กก่อน migration 008
         .ilike('serial_no', manual.serial_no)
         .maybeSingle()
@@ -442,6 +537,11 @@ export async function applyServiceBatchAction(
       }
 
       if (existingTire) {
+        const violation = shopGrantViolation(existingTire, at)
+        if (violation) {
+          await rollbackCreatedTires()
+          return violation
+        }
         if (item.new_tire) {
           await rollbackCreatedTires()
           return {
@@ -467,6 +567,20 @@ export async function applyServiceBatchAction(
           note: item.note,
         })
         continue
+      }
+
+      // ร้านค้า: รุ่นที่ใส่ต้องอยู่ในสิทธิ์ของร้าน — เช็คจากรุ่นในแคตตาล็อกก่อน (เชื่อถือได้กว่าค่าที่ client ส่งมา)
+      if (shopRules) {
+        const snapshot = await resolveModelSnapshot(supabase, manual.tire_model_id)
+        const violation = shopGrantViolation({
+          tire_model_id: manual.tire_model_id,
+          brand_name: snapshot.brand_name ?? manual.brand_name,
+          model_name: snapshot.model_name ?? manual.model_name,
+        }, at)
+        if (violation) {
+          await rollbackCreatedTires()
+          return violation
+        }
       }
 
       let modelId = manual.tire_model_id
@@ -514,6 +628,28 @@ export async function applyServiceBatchAction(
     if (!item.tire_id) {
       await rollbackCreatedTires()
       return { ok: false, error: `${at}: ไม่ได้ระบุยาง` }
+    }
+
+    // ยางที่อ้างด้วย id ต้องเป็นของบริษัทนี้ (ร้านค้าเห็นยางหลายบริษัท) และถ้าใส่ต้องอยู่ในสิทธิ์รุ่นของร้าน
+    const { data: referenced, error: referencedError } = await supabase
+      .from('tires')
+      .select('id, company_id, brand_name, model_name, tire_model_id')
+      .eq('id', item.tire_id)
+      .maybeSingle()
+    if (referencedError) {
+      await rollbackCreatedTires()
+      return fail(referencedError)
+    }
+    if (!referenced || referenced.company_id !== companyId) {
+      await rollbackCreatedTires()
+      return { ok: false, error: `${at}: ไม่พบยางเส้นนี้ในบริษัทที่เลือก` }
+    }
+    if (item.kind === 'mount') {
+      const violation = shopGrantViolation(referenced, at)
+      if (violation) {
+        await rollbackCreatedTires()
+        return violation
+      }
     }
 
     if (item.kind === 'unmount') {
@@ -572,6 +708,8 @@ export async function applyServiceBatchAction(
 
 /** รถใหม่จากหน้าช่าง: ต้องมีทะเบียน (ตามรูปแบบมาตรฐาน + จังหวัด) หรือชื่อเรียกอย่างใดอย่างหนึ่ง · เลือกรถเดิมด้วย vehicle_id ไม่ต้องตรวจ */
 const serviceVehicleSchema = z.object({
+  /** ลูกค้าที่ร้านค้าเลือก — แอดมิน/ช่างไม่ต้องส่ง */
+  company_id: z.string().uuid().optional(),
   vehicle_id: z.string().uuid().optional(),
   ...vehicleIdentityFields,
   axle_type: z.string().trim().min(1, 'กรุณาเลือกประเภทรถ').max(30),
@@ -603,12 +741,14 @@ export interface ServiceVehicleResult {
 export async function ensureServiceVehicleAction(
   input: ServiceVehicleInput,
 ): Promise<ActionResult<ServiceVehicleResult>> {
-  const { company } = await requireSession(['admin', 'technician'])
-  if (!company) return { ok: false, error: 'บัญชีนี้ยังไม่ได้ผูกกับบริษัท' }
-
   const parsed = serviceVehicleSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
   const data = parsed.data
+
+  // แอดมิน/ช่าง = บริษัทตัวเอง · ร้านค้า = ลูกค้าที่เลือก (ต้องอยู่ภายใต้ร้าน)
+  const scope = await resolveServiceScope(data.company_id)
+  if (!scope.ok) return scope
+  const company = { id: scope.companyId }
 
   const supabase = await createClient()
 
@@ -700,4 +840,8 @@ function revalidateService() {
   revalidatePath('/dashboard')
   revalidatePath('/tires')
   revalidatePath('/vehicles')
+  // ฝั่งร้านค้าใช้ข้อมูลชุดเดียวกัน
+  revalidatePath('/shop')
+  revalidatePath('/shop/service')
+  revalidatePath('/shop/reports')
 }

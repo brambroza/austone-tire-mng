@@ -18,7 +18,7 @@ import {
 } from './fleet-report'
 import type { FleetExportInput } from './fleet-report-export'
 
-export const metadata = { title: 'รายงานรถและการตรวจยาง · Dream Tire' }
+export const metadata = { title: 'รายงานรถและการตรวจยาง · Austone Tire' }
 
 /** เพดานจำนวนรถที่ดึงมาคำนวณ — เกินกว่านี้รถที่เหลือจะไม่ถูกนับ (ฟลีตปกติไม่ถึง) */
 const VEHICLE_LIMIT = 5000
@@ -112,7 +112,7 @@ export default async function FleetReportPage({
   const filterLabel = `${monthLabel} · ${branchFilterLabel(filters.branch)} · ${axleLabel}`
   const exportInput: FleetExportInput = {
     meta: {
-      companyName: company?.name ?? 'Dream Tire',
+      companyName: company?.name ?? 'Austone Tire',
       filterLabel,
       branchSlug: branchFileSlug(filters.branch),
       yyyymm: `${filters.year}${String(filters.month).padStart(2, '0')}`,

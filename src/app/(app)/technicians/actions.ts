@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { AUSTONE_WRITE_ROLES, canEditCentral, isAustoneStaff } from '@/lib/roles'
 import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
 import { resolveCompanyScope } from '@/lib/company-scope'
@@ -92,7 +93,7 @@ export async function createTeamMember(
  * @param input ข้อมูลที่แก้ไข
  */
 export async function updateTeamMember(id: string, input: UpdateUserInput): Promise<ActionResult> {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   const parsed = updateSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -117,7 +118,7 @@ export async function updateTeamMember(id: string, input: UpdateUserInput): Prom
  * @param isActive สถานะที่ต้องการ
  */
 export async function setMemberActive(id: string, isActive: boolean): Promise<ActionResult> {
-  const { userId } = await requireSession(['admin', 'super_admin'])
+  const { userId } = await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   if (id === userId) return { ok: false, error: 'ไม่สามารถปิดใช้งานบัญชีของตัวเองได้' }
 
   const supabase = await createClient()
@@ -142,7 +143,7 @@ export async function setMemberActive(id: string, isActive: boolean): Promise<Ac
  * @param id รหัสผู้ใช้ที่ต้องการลบ
  */
 export async function deleteTeamMember(id: string): Promise<ActionResult> {
-  const session = await requireSession(['admin', 'super_admin'])
+  const session = await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   if (id === session.userId) return { ok: false, error: 'ไม่สามารถลบบัญชีของตัวเองได้' }
 
   const supabase = await createClient()
@@ -153,8 +154,8 @@ export async function deleteTeamMember(id: string): Promise<ActionResult> {
     .maybeSingle()
 
   if (!target) return { ok: false, error: 'ไม่พบผู้ใช้ที่ระบุ' }
-  if (target.role === 'super_admin') {
-    return { ok: false, error: 'ไม่สามารถลบบัญชีผู้ดูแลระบบได้' }
+  if (isAustoneStaff(target.role)) {
+    return { ok: false, error: 'ไม่สามารถลบบัญชีทีม Austone จากหน้านี้ได้' }
   }
   if (session.profile.role === 'admin' && target.company_id !== session.profile.company_id) {
     return { ok: false, error: 'ไม่พบผู้ใช้ในบริษัทของคุณ' }
@@ -181,7 +182,7 @@ export async function deleteTeamMember(id: string): Promise<ActionResult> {
  * @param password รหัสผ่านใหม่
  */
 export async function resetMemberPassword(id: string, password: string): Promise<ActionResult> {
-  const session = await requireSession(['admin', 'super_admin'])
+  const session = await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   if (password.length < 6) return { ok: false, error: 'รหัสผ่านอย่างน้อย 6 ตัวอักษร' }
 
   const supabase = await createClient()
@@ -197,7 +198,7 @@ export async function resetMemberPassword(id: string, password: string): Promise
     return { ok: false, error: 'ไม่พบผู้ใช้ในบริษัทของคุณ' }
   }
 
-  if (session.profile.role === 'super_admin' && target.role === 'super_admin') {
+  if (canEditCentral(session.profile.role) && isAustoneStaff(target.role)) {
     return { ok: false, error: 'ไม่สามารถรีเซ็ตรหัสผ่านของผู้ดูแลระบบคนอื่นได้' }
   }
 

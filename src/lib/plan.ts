@@ -47,5 +47,5 @@ export function hasFeature(
 
 /** ข้อความแจ้งเมื่อฟีเจอร์ถูกล็อก */
 export function featureLockedMessage(feature: PremiumFeature): string {
-  return `${FEATURE_LABEL[feature]} ใช้ได้เฉพาะแพ็กเกจ Premium — ติดต่อ Dreammaker เพื่อเปิดใช้งาน`
+  return `${FEATURE_LABEL[feature]} ใช้ได้เฉพาะแพ็กเกจ Premium — ติดต่อ Austone Thailand เพื่อเปิดใช้งาน`
 }

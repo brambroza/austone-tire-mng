@@ -35,11 +35,14 @@ export function TechniciansClient({
   members,
   currentUserId,
   companyId,
+  readOnly = false,
 }: {
   members: MemberRow[]
   currentUserId: string
   /** ระบุเมื่อ super admin จัดการผู้ใช้แทนลูกค้า */
   companyId?: string
+  /** true = ดูอย่างเดียว (เซล Austone) — ซ่อนปุ่มเพิ่ม/แก้ไข/ลบ */
+  readOnly?: boolean
 }) {
   const router = useRouter()
   const [formOpen, setFormOpen] = React.useState(false)
@@ -148,12 +151,14 @@ export function TechniciansClient({
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <Button onClick={openCreate}>
-          <Plus className="size-4.5" />
-          เพิ่มผู้ใช้งาน
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="mb-4 flex justify-end">
+          <Button onClick={openCreate}>
+            <Plus className="size-4.5" />
+            เพิ่มผู้ใช้งาน
+          </Button>
+        </div>
+      )}
 
       {notice && (
         <div className="mb-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-800 ring-1 ring-inset ring-brand-100">
@@ -166,7 +171,7 @@ export function TechniciansClient({
           <EmptyState
             icon={<Users className="size-6" />}
             title="ยังไม่มีผู้ใช้งานในบริษัท"
-            action={<Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มผู้ใช้งาน</Button>}
+            action={!readOnly && <Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มผู้ใช้งาน</Button>}
           />
         ) : (
           <TableWrap>
@@ -202,6 +207,7 @@ export function TechniciansClient({
                     <Td className="whitespace-nowrap text-ink-500">{formatThaiDate(m.created_at)}</Td>
                     <Td>
                       <div className="flex items-center justify-end gap-1">
+                        {!readOnly && <>
                         <button
                           type="button" onClick={() => openEdit(m)} aria-label="แก้ไข"
                           className="flex size-11 items-center justify-center rounded-lg text-ink-500 hover:bg-brand-50 hover:text-brand-600"
@@ -231,6 +237,7 @@ export function TechniciansClient({
                         >
                           <Trash2 className="size-4.5" />
                         </button>
+                        </>}
                       </div>
                     </Td>
                   </tr>

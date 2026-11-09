@@ -2,7 +2,9 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { SHOP_MOUNT_BRAND_MESSAGE, isShopMountBrand } from '@/lib/shop-rules'
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_WRITE_ROLES, DEALER_MANAGER_ROLES } from '@/lib/roles'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { removeTireImage, storeTireImage } from '@/lib/tire-images'
 import { ActionResult, fail, optionalNumber, optionalText, zodFail } from '@/lib/action-result'
@@ -42,9 +44,17 @@ function normalizePlan<T extends { plan: 'standard' | 'premium'; plan_expires_at
   return { ...data, plan_expires_at: data.plan === 'premium' ? data.plan_expires_at : null }
 }
 
+/** uuid ที่เว้นว่างได้ — ว่าง = null */
+const optionalUuid = optionalText.refine(
+  (v) => v === null || z.string().uuid().safeParse(v).success,
+  'รหัสไม่ถูกต้อง',
+)
+
 const companySchema = z.object({
   code: z.string().trim().min(2, 'รหัสบริษัทอย่างน้อย 2 ตัวอักษร').max(20),
   name: z.string().trim().min(1, 'กรุณากรอกชื่อบริษัท'),
+  /** ร้านค้าที่ดูแลบริษัทนี้ — null = ลูกค้าตรงของ Austone Thailand (migration 021) */
+  shop_id: optionalUuid,
   tax_id: optionalText,
   phone: optionalText,
   email: optionalText,
@@ -63,11 +73,11 @@ const companyPlanSchema = z.object(planFields)
 export type CompanyPlanInput = z.input<typeof companyPlanSchema>
 
 /**
- * เพิ่มบริษัทลูกค้าใหม่
+ * เพิ่มลูกค้าใหม่
  * @param input ข้อมูลบริษัท
  */
 export async function createCompany(input: SuperCompanyInput): Promise<ActionResult<{ id: string }>> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = companyAutoCodeSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -96,12 +106,12 @@ export async function createCompany(input: SuperCompanyInput): Promise<ActionRes
 }
 
 /**
- * แก้ไขข้อมูลบริษัทลูกค้า
+ * แก้ไขข้อมูลลูกค้า
  * @param id รหัสบริษัท
  * @param input ข้อมูลที่แก้ไข
  */
 export async function updateCompany(id: string, input: SuperCompanyInput): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = companyAutoCodeSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -118,12 +128,12 @@ export async function updateCompany(id: string, input: SuperCompanyInput): Promi
 }
 
 /**
- * เปลี่ยนแพ็กเกจของบริษัทลูกค้าอย่างเดียว (ปุ่มเปลี่ยนด่วนในตาราง)
+ * เปลี่ยนแพ็กเกจของลูกค้าอย่างเดียว (ปุ่มเปลี่ยนด่วนในตาราง)
  * @param id รหัสบริษัท
  * @param input แพ็กเกจและวันหมดอายุ
  */
 export async function setCompanyPlan(id: string, input: CompanyPlanInput): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsedId = z.string().uuid('รหัสบริษัทไม่ถูกต้อง').safeParse(id)
   if (!parsedId.success) return zodFail(parsedId.error)
   const parsed = companyPlanSchema.safeParse(input)
@@ -142,12 +152,12 @@ export async function setCompanyPlan(id: string, input: CompanyPlanInput): Promi
 }
 
 /**
- * เปิด/ปิดการใช้งานบริษัทลูกค้า
+ * เปิด/ปิดการใช้งานลูกค้า
  * @param id รหัสบริษัท
  * @param isActive สถานะที่ต้องการ
  */
 export async function setCompanyActive(id: string, isActive: boolean): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const supabase = await createClient()
   const { error } = await supabase.from('companies').update({ is_active: isActive }).eq('id', id)
   if (error) return fail(error)
@@ -168,11 +178,11 @@ const companyAdminSchema = z.object({
 export type CompanyAdminInput = z.input<typeof companyAdminSchema>
 
 /**
- * สร้างบัญชีผู้ใช้ให้บริษัทลูกค้า (มักใช้สร้างแอดมินคนแรก)
+ * สร้างบัญชีผู้ใช้ให้ลูกค้า (มักใช้สร้างแอดมินคนแรก)
  * @param input ข้อมูลผู้ใช้
  */
 export async function createCompanyUser(input: CompanyAdminInput): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = companyAdminSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -213,7 +223,7 @@ export async function createCompanyUser(input: CompanyAdminInput): Promise<Actio
  * @param name ชื่อยี่ห้อ
  */
 export async function createBrand(name: string): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const value = name.trim().toUpperCase()
   if (!value) return { ok: false, error: 'กรุณากรอกชื่อยี่ห้อ' }
 
@@ -231,7 +241,7 @@ export async function createBrand(name: string): Promise<ActionResult> {
  * @param isActive สถานะที่ต้องการ
  */
 export async function setBrandActive(id: string, isActive: boolean): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const supabase = await createClient()
   const { error } = await supabase.from('tire_brands').update({ is_active: isActive }).eq('id', id)
   if (error) return fail(error)
@@ -257,7 +267,7 @@ const modelSchema = z.object({
 export async function uploadTireImage(
   formData: FormData,
 ): Promise<ActionResult<{ url: string }>> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   return storeTireImage(formData.get('file'), 'models')
 }
 
@@ -266,7 +276,7 @@ export async function uploadTireImage(
  * @param url public URL ของรูปที่ต้องการลบ
  */
 export async function deleteTireImage(url: string): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const result = await removeTireImage(url)
   if (result.ok) revalidatePath('/superadmin/catalog')
   return result
@@ -279,7 +289,7 @@ export type ModelInput = z.input<typeof modelSchema>
  * @param input ข้อมูลรุ่นยาง
  */
 export async function createModel(input: ModelInput): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = modelSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -297,7 +307,7 @@ export async function createModel(input: ModelInput): Promise<ActionResult> {
  * @param input ข้อมูลที่แก้ไข
  */
 export async function updateModel(id: string, input: ModelInput): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = modelSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -315,7 +325,7 @@ export async function updateModel(id: string, input: ModelInput): Promise<Action
  * @param isActive สถานะที่ต้องการ
  */
 export async function setModelActive(id: string, isActive: boolean): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const supabase = await createClient()
   const { error } = await supabase.from('tire_models').update({ is_active: isActive }).eq('id', id)
   if (error) return fail(error)
@@ -326,7 +336,7 @@ export async function setModelActive(id: string, isActive: boolean): Promise<Act
 /* ============================ สิทธิ์การมองเห็นยางของแต่ละบริษัท */
 
 /**
- * กำหนดว่าบริษัทลูกค้าเห็นยางรุ่นใดได้บ้าง (แทนที่รายการเดิมทั้งหมด)
+ * กำหนดว่าลูกค้าเห็นยางรุ่นใดได้บ้าง (แทนที่รายการเดิมทั้งหมด)
  * @param companyId รหัสบริษัท
  * @param modelIds รายการรุ่นยางที่อนุญาต
  */
@@ -334,7 +344,7 @@ export async function setCompanyTireModels(
   companyId: string,
   modelIds: string[],
 ): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const supabase = await createClient()
 
   const { error: deleteError } = await supabase
@@ -362,7 +372,7 @@ const axleAccessSchema = z.object({
 })
 
 /**
- * กำหนดว่าบริษัทลูกค้าเห็นประเภทเพลาใดได้บ้าง (แทนที่รายการเดิมทั้งหมด)
+ * กำหนดว่าลูกค้าเห็นประเภทเพลาใดได้บ้าง (แทนที่รายการเดิมทั้งหมด)
  * ประเภทเพลาที่มีรถของบริษัทใช้อยู่จะถูกคงไว้เสมอ เพื่อไม่ให้ข้อมูลรถเดิมพัง
  * @param companyId รหัสบริษัท
  * @param axleTypeIds รายการประเภทเพลาที่อนุญาต
@@ -371,7 +381,7 @@ export async function setCompanyAxleTypes(
   companyId: string,
   axleTypeIds: string[],
 ): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = axleAccessSchema.safeParse({ companyId, axleTypeIds })
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -434,7 +444,7 @@ export type ReasonInput = z.input<typeof reasonSchema>
  * @param input ข้อมูลสาเหตุ
  */
 export async function createReason(input: ReasonInput): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = reasonSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -454,7 +464,7 @@ export async function createReason(input: ReasonInput): Promise<ActionResult> {
  * @param input ข้อมูลที่แก้ไข
  */
 export async function updateReason(id: string, input: ReasonInput): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = reasonSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -475,7 +485,7 @@ export async function updateReason(id: string, input: ReasonInput): Promise<Acti
  * @param isActive สถานะที่ต้องการ
  */
 export async function setReasonActive(id: string, isActive: boolean): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const supabase = await createClient()
   const { error } = await supabase.from('removal_reasons').update({ is_active: isActive }).eq('id', id)
   if (error) return fail(error)
@@ -526,7 +536,7 @@ function axleTypeFail(error: { code?: string; message?: string }): ActionResult<
 
 /** เพิ่มประเภทเพลา */
 export async function createAxleType(input: AxleTypeInput): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = axleTypeSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -546,7 +556,7 @@ export async function updateAxleType(
   id: string,
   input: AxleTypeInput,
 ): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsedId = axleTypeIdSchema.safeParse(id)
   if (!parsedId.success) return zodFail(parsedId.error)
   const parsed = axleTypeSchema.safeParse(input)
@@ -592,7 +602,7 @@ export async function updateAxleType(
 
 /** เปิด/ปิดประเภทเพลา (รถเดิมและประวัติยังคงแสดงตามปกติ) */
 export async function setAxleTypeActive(id: string, isActive: boolean): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsed = z.object({ id: axleTypeIdSchema, isActive: z.boolean() }).safeParse({ id, isActive })
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -612,7 +622,7 @@ export async function setAxleTypeActive(id: string, isActive: boolean): Promise<
 
 /** ลบประเภทเพลาที่ไม่มีรถอ้างอิงอยู่ */
 export async function deleteAxleType(id: string): Promise<ActionResult> {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_WRITE_ROLES)
   const parsedId = axleTypeIdSchema.safeParse(id)
   if (!parsedId.success) return zodFail(parsedId.error)
 
@@ -639,5 +649,186 @@ export async function deleteAxleType(id: string): Promise<ActionResult> {
   if (error) return axleTypeFail(error)
 
   revalidateAxleTypes()
+  return { ok: true }
+}
+
+/* ============================================================ ร้านค้า (migration 021) */
+
+const shopSchema = z.object({
+  name: z.string().trim().min(1, 'กรุณากรอกชื่อร้านค้า').max(200),
+  tax_id: optionalText,
+  phone: optionalText,
+  email: optionalText,
+  address: optionalText,
+  contact_name: optionalText,
+})
+
+export type ShopInput = z.input<typeof shopSchema>
+
+function revalidateShops(id?: string) {
+  revalidatePath('/superadmin/shops')
+  if (id) revalidatePath(`/superadmin/shops/${id}`)
+}
+
+/**
+ * เพิ่มร้านค้าใหม่ (รหัส S0001.. สร้างอัตโนมัติ)
+ * @param input ข้อมูลร้านค้า
+ */
+export async function createShop(input: ShopInput): Promise<ActionResult<{ id: string }>> {
+  await requireSession(DEALER_MANAGER_ROLES)
+  const parsed = shopSchema.safeParse(input)
+  if (!parsed.success) return zodFail(parsed.error)
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.from('shops').insert(parsed.data).select('id').single()
+  if (error) return fail(error)
+
+  revalidateShops()
+  return { ok: true, data: { id: data.id } }
+}
+
+/**
+ * แก้ไขข้อมูลร้านค้า
+ * @param id รหัสร้านค้า
+ * @param input ข้อมูลที่แก้ไข
+ */
+export async function updateShop(id: string, input: ShopInput): Promise<ActionResult> {
+  await requireSession(DEALER_MANAGER_ROLES)
+  const parsedId = z.string().uuid('รหัสร้านค้าไม่ถูกต้อง').safeParse(id)
+  if (!parsedId.success) return zodFail(parsedId.error)
+  const parsed = shopSchema.safeParse(input)
+  if (!parsed.success) return zodFail(parsed.error)
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('shops').update(parsed.data).eq('id', parsedId.data)
+  if (error) return fail(error)
+
+  revalidateShops(parsedId.data)
+  return { ok: true }
+}
+
+/**
+ * เปิด/ปิดการใช้งานร้านค้า — ปิดแล้วพนักงานร้านเข้าระบบไม่ได้ แต่ข้อมูลลูกค้ายังอยู่ครบ
+ * @param id รหัสร้านค้า
+ * @param isActive สถานะที่ต้องการ
+ */
+export async function setShopActive(id: string, isActive: boolean): Promise<ActionResult> {
+  await requireSession(DEALER_MANAGER_ROLES)
+  const parsedId = z.string().uuid('รหัสร้านค้าไม่ถูกต้อง').safeParse(id)
+  if (!parsedId.success) return zodFail(parsedId.error)
+
+  const supabase = await createClient()
+  const { error } = await supabase.from('shops').update({ is_active: isActive }).eq('id', parsedId.data)
+  if (error) return fail(error)
+
+  revalidateShops(parsedId.data)
+  return { ok: true }
+}
+
+/* ------------------------------------------------ รุ่นยางที่กำหนดให้ร้าน (migration 022) */
+
+const shopTireModelsSchema = z.object({
+  shopId: z.string().uuid('รหัสร้านค้าไม่ถูกต้อง'),
+  modelIds: z.array(z.string().uuid('รหัสรุ่นยางไม่ถูกต้อง')),
+})
+
+/**
+ * Austone กำหนดว่าร้านนี้ใส่ยางรุ่นใดให้ลูกค้าได้บ้าง (แทนที่รายการเดิมทั้งหมด)
+ * - รับเฉพาะรุ่นกลางยี่ห้อ AUSTONE ที่ยังเปิดใช้งาน
+ * - รุ่นที่เพิ่มจะถูกเปิดสิทธิ์ให้ลูกค้าทุกรายภายใต้ร้านด้วย (บริษัทจะได้เห็นรุ่นที่ร้านใส่ให้)
+ *   ส่วนรุ่นที่ถอดออกจากร้านจะไม่ถอนจากบริษัท เพราะอาจมียางรุ่นนั้นติดรถอยู่แล้ว
+ * @param shopId รหัสร้านค้า
+ * @param modelIds รายการรุ่นยางที่อนุญาต
+ */
+export async function setShopTireModels(shopId: string, modelIds: string[]): Promise<ActionResult> {
+  await requireSession(DEALER_MANAGER_ROLES)
+  const parsed = shopTireModelsSchema.safeParse({ shopId, modelIds })
+  if (!parsed.success) return zodFail(parsed.error)
+  const supabase = await createClient()
+
+  const unique = [...new Set(parsed.data.modelIds)]
+  if (unique.length > 0) {
+    const { data: models, error: modelError } = await supabase
+      .from('tire_models')
+      .select('id, is_active, created_by_company, tire_brands(name)')
+      .in('id', unique)
+    if (modelError) return fail(modelError)
+    const rows = (models ?? []) as unknown as Array<{
+      id: string; is_active: boolean; created_by_company: string | null; tire_brands: { name: string } | null
+    }>
+    const byId = new Map(rows.map((m) => [m.id, m]))
+    for (const id of unique) {
+      const m = byId.get(id)
+      if (!m || !m.is_active || m.created_by_company !== null) {
+        return { ok: false, error: 'มีรุ่นยางที่ไม่อยู่ในแคตตาล็อกกลางหรือถูกปิดใช้งานแล้ว' }
+      }
+      if (!isShopMountBrand(m.tire_brands?.name)) return { ok: false, error: SHOP_MOUNT_BRAND_MESSAGE }
+    }
+  }
+
+  const { error: deleteError } = await supabase.from('shop_tire_models').delete().eq('shop_id', parsed.data.shopId)
+  if (deleteError) return fail(deleteError)
+
+  if (unique.length > 0) {
+    const { error } = await supabase
+      .from('shop_tire_models')
+      .insert(unique.map((id) => ({ shop_id: parsed.data.shopId, tire_model_id: id })))
+    if (error) return fail(error)
+    // สิทธิ์ของลูกค้าทุกรายของร้านถูกเปิดให้โดย trigger `propagate_shop_tire_model` (migration 025)
+  }
+
+  revalidateShops(parsed.data.shopId)
+  revalidatePath(`/superadmin/shops/${parsed.data.shopId}/tires`)
+  return { ok: true }
+}
+
+const shopUserSchema = z.object({
+  shop_id: z.string().uuid(),
+  email: z.string().trim().email('อีเมลไม่ถูกต้อง'),
+  password: z.string().min(6, 'รหัสผ่านอย่างน้อย 6 ตัวอักษร'),
+  full_name: z.string().trim().min(1, 'กรุณากรอกชื่อ-นามสกุล'),
+  phone: optionalText,
+})
+
+export type ShopUserInput = z.input<typeof shopUserSchema>
+
+/**
+ * สร้างบัญชีพนักงานร้านค้า (role = shop) — ใช้ service role สร้าง auth user แล้วผูก profile กับร้าน
+ * @param input ข้อมูลผู้ใช้
+ */
+export async function createShopUser(input: ShopUserInput): Promise<ActionResult> {
+  await requireSession(DEALER_MANAGER_ROLES)
+  const parsed = shopUserSchema.safeParse(input)
+  if (!parsed.success) return zodFail(parsed.error)
+
+  let admin
+  try {
+    admin = createAdminClient()
+  } catch {
+    return { ok: false, error: 'ยังไม่ได้ตั้งค่า SUPABASE_SERVICE_ROLE_KEY จึงสร้างผู้ใช้ไม่ได้' }
+  }
+
+  const { data: created, error: authError } = await admin.auth.admin.createUser({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    email_confirm: true,
+  })
+  if (authError || !created.user) return fail(authError ?? 'สร้างผู้ใช้ไม่สำเร็จ')
+
+  const { error: profileError } = await admin.from('profiles').insert({
+    id: created.user.id,
+    company_id: null,
+    shop_id: parsed.data.shop_id,
+    role: 'shop',
+    full_name: parsed.data.full_name,
+    phone: parsed.data.phone,
+  })
+
+  if (profileError) {
+    await admin.auth.admin.deleteUser(created.user.id)
+    return fail(profileError)
+  }
+
+  revalidateShops(parsed.data.shop_id)
   return { ok: true }
 }

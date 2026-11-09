@@ -65,7 +65,7 @@ export function TiresClient({
   enableLinks = true,
   enableHistory = false,
   axleTypes,
-  companyName = 'Dream Tire',
+  companyName = 'Austone Tire',
   stats,
 }: {
   tires: TireOverview[]
@@ -224,7 +224,7 @@ export function TiresClient({
                 className={cn(
                   'min-h-12 rounded-xl border-2 px-4 text-base font-semibold transition-colors',
                   status === f.value
-                    ? 'border-brand-600 bg-brand-600 text-white'
+                    ? 'border-brand-400 bg-brand-400 text-ink-900'
                     : 'border-line bg-white text-ink-900 hover:border-brand-300 hover:bg-brand-50',
                 )}
               >
@@ -243,7 +243,7 @@ export function TiresClient({
               <button
                 type="button"
                 onClick={() => { setEditing(null); setFormOpen(true) }}
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl border-2 border-brand-600 bg-brand-600 px-4.5 text-[15px] font-semibold text-white hover:bg-brand-700"
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl border-2 border-brand-400 bg-brand-400 px-4.5 text-[15px] font-semibold text-ink-900 hover:bg-brand-500"
               >
                 <Plus className="size-5" />
                 เพิ่มยาง

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
 import { Badge } from '@/components/ui'
@@ -20,7 +21,7 @@ export default async function CompanyLayout({
   children: React.ReactNode
   params: Promise<{ id: string }>
 }) {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_ROLES)
   const { id } = await params
   const supabase = await createClient()
 

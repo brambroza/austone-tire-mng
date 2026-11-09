@@ -1,5 +1,6 @@
 'use server'
 
+import { AUSTONE_WRITE_ROLES } from '@/lib/roles'
 import {
   normalizeVehicleIdentity, refineVehicleIdentity, vehicleIdentityFields, vehicleUniqueViolation,
 } from '@/lib/vehicle-schema'
@@ -160,7 +161,7 @@ export async function createVehicle(
  * @param input ข้อมูลที่แก้ไข
  */
 export async function updateVehicle(id: string, input: VehicleInput): Promise<ActionResult> {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   const parsed = vehicleSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -238,7 +239,7 @@ export async function updateVehicle(id: string, input: VehicleInput): Promise<Ac
  * @param id รหัสรถ
  */
 export async function deactivateVehicle(id: string): Promise<ActionResult> {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   const supabase = await createClient()
 
   const { count } = await supabase
@@ -268,7 +269,7 @@ export async function deactivateVehicle(id: string): Promise<ActionResult> {
  * @param id รหัสรถ
  */
 export async function reactivateVehicle(id: string): Promise<ActionResult> {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   const supabase = await createClient()
 
   const { data, error } = await supabase
@@ -312,7 +313,7 @@ export async function updateMileage(
   id: string,
   mileage: number,
 ): Promise<ActionResult<UpdateMileageResult>> {
-  await requireSession(['admin', 'technician', 'super_admin'])
+  await requireSession(['admin', 'technician', ...AUSTONE_WRITE_ROLES])
   const parsed = mileageSchema.safeParse({ vehicle_id: id, mileage })
   if (!parsed.success) return zodFail(parsed.error)
 
@@ -375,7 +376,7 @@ export async function updateMileage(
 export async function getVehicleHistoryAction(
   vehicleId: string,
 ): Promise<ActionResult<VehicleEventRow[]>> {
-  await requireSession(['admin', 'technician', 'super_admin'])
+  await requireSession(['admin', 'technician', ...AUSTONE_WRITE_ROLES])
 
   const parsed = z.string().uuid('รหัสรถไม่ถูกต้อง').safeParse(vehicleId)
   if (!parsed.success) return zodFail(parsed.error)
@@ -405,7 +406,7 @@ export async function getVehicleHistoryAction(
 export async function getObservedMonthlyKm(
   vehicleId: string,
 ): Promise<ActionResult<{ kmPerMonth: number; sampleEvents: number; lastDate: string } | null>> {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
 
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -433,7 +434,7 @@ const vehicleIdSchema = z.string().uuid('รหัสรถไม่ถูกต
  * @param id รหัสรถ
  */
 async function loadVehicleForPhoto(id: string) {
-  await requireSession(['admin', 'super_admin'])
+  await requireSession(['admin', ...AUSTONE_WRITE_ROLES])
   const parsedId = vehicleIdSchema.safeParse(id)
   if (!parsedId.success) return { ok: false as const, error: 'รหัสรถไม่ถูกต้อง' }
   const supabase = await createClient()

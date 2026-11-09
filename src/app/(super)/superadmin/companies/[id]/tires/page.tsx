@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Upload } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardHeader } from '@/components/ui'
 import { TiresClient } from '@/app/(app)/tires/tires-client'
@@ -9,7 +10,7 @@ import { fetchLastRemovals } from '@/lib/tire-events'
 import { computeTireStats, filterTiresByDate, filterTiresByStatus, parseTireDateFilter } from '@/app/(app)/tires/tire-filters'
 import type { AxleType, Tire, TireOverview } from '@/lib/database.types'
 
-export const metadata = { title: 'จัดการคลังยางของลูกค้า · Dream Tire Admin' }
+export const metadata = { title: 'จัดการคลังยางของลูกค้า · Austone Tire Admin' }
 
 interface ModelRow {
   id: string
@@ -29,7 +30,7 @@ export default async function CompanyTiresPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ q?: string; status?: string; date_field?: string; from?: string; to?: string }>
 }) {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_ROLES)
   const { id } = await params
   const { q, status, date_field, from, to } = await searchParams
   const supabase = await createClient()
@@ -117,7 +118,7 @@ export default async function CompanyTiresPage({
         enableLinks={false}
         enableHistory
         axleTypes={(axleTypeData ?? []) as AxleType[]}
-        companyName={companyData?.name ?? 'Dream Tire'}
+        companyName={companyData?.name ?? 'Austone Tire'}
         stats={stats}
       />
     </>

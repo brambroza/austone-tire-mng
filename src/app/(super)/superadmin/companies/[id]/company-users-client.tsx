@@ -18,9 +18,12 @@ const ROLE_LABEL: Record<string, string> = { admin: 'แอดมิน', techni
 export function CompanyUsersClient({
   companyId,
   users,
+  readOnly = false,
 }: {
   companyId: string
   users: Profile[]
+  /** true = ดูอย่างเดียว (เซล) */
+  readOnly?: boolean
 }) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
@@ -65,12 +68,12 @@ export function CompanyUsersClient({
         <CardHeader
           title="ผู้ใช้งานของบริษัท"
           description={`ทั้งหมด ${users.length} บัญชี`}
-          action={
+          action={!readOnly && (
             <Button size="sm" onClick={() => setOpen(true)}>
               <Plus className="size-4" />
               สร้างบัญชี
             </Button>
-          }
+          )}
         />
         {users.length === 0 ? (
           <EmptyState

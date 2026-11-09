@@ -191,7 +191,7 @@ function WheelButton({
         'group relative flex w-[3.75rem] flex-col items-center gap-1 rounded-xl border px-1 py-2 sm:w-[4.5rem] sm:px-2 sm:py-2.5',
         'transition-all duration-150',
         tone === 'selected' &&
-          'border-brand-600 bg-brand-600 text-white shadow-[0_12px_26px_-14px_rgba(13,110,224,1)]',
+          'border-brand-400 bg-brand-400 text-ink-900 shadow-[0_12px_26px_-14px_rgba(245,233,7,0.6)]',
         tone === 'done' && 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-200',
         tone === 'alert' && 'border-amber-300 bg-amber-50 text-amber-700',
         tone === 'mounted' && 'border-emerald-300 bg-emerald-50 text-emerald-700',
@@ -220,7 +220,7 @@ function WheelButton({
       <span
         className={cn(
           'text-[10px] leading-none',
-          active ? 'text-white/75' : 'opacity-70',
+          active ? 'text-ink-900/70' : 'opacity-70',
         )}
       >
         {done ? 'กรอกครบ' : slot ? (slot.treadMm !== null ? `${slot.treadMm} มม.` : '—') : 'ว่าง'}

@@ -107,7 +107,7 @@ export function DashboardDateFilter({ basePath = '/dashboard' }: { basePath?: st
               className={cn(
                 'min-h-12 rounded-xl border-2 px-4 text-base font-semibold transition-colors',
                 activePreset === preset.key
-                  ? 'border-brand-600 bg-brand-600 text-white'
+                  ? 'border-brand-400 bg-brand-400 text-ink-900'
                   : 'border-line bg-white text-ink-900 hover:border-brand-300 hover:bg-brand-50',
               )}
             >

@@ -1,5 +1,6 @@
 import { vehicleSearchFilter } from '@/lib/vehicle-display'
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { Card, CardHeader } from '@/components/ui'
 import { VehiclesClient, type VehicleRow } from '@/app/(app)/vehicles/vehicles-client'
@@ -7,7 +8,7 @@ import { BRANCH_FILTER_NONE } from '@/app/(app)/vehicles/branch-filter'
 import { signVehiclePhotoUrls } from '@/lib/vehicle-photos'
 import type { AxleType, Vehicle } from '@/lib/database.types'
 
-export const metadata = { title: 'จัดการรถของลูกค้า · Dream Tire Admin' }
+export const metadata = { title: 'จัดการรถของลูกค้า · Austone Tire Admin' }
 
 /** แท็บจัดการรถของลูกค้า — ใช้ตาราง/ฟอร์มชุดเดียวกับฝั่งลูกค้า (กรอง ?q= และ ?branch= เหมือนกัน) */
 export default async function CompanyVehiclesPage({
@@ -17,7 +18,7 @@ export default async function CompanyVehiclesPage({
   params: Promise<{ id: string }>
   searchParams: Promise<{ q?: string; branch?: string }>
 }) {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_ROLES)
   const { id } = await params
   const { q, branch } = await searchParams
   const supabase = await createClient()
@@ -73,7 +74,7 @@ export default async function CompanyVehiclesPage({
         companyId={id}
         enableLinks={false}
         enableHistory
-        companyName={companyData?.name ?? 'Dream Tire'}
+        companyName={companyData?.name ?? 'Austone Tire'}
       />
     </>
   )

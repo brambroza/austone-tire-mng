@@ -38,7 +38,7 @@ const TONE_SOFT: Record<DashTone, string> = {
 }
 
 const TONE_SOLID: Record<DashTone, string> = {
-  brand: 'bg-brand-600 text-white',
+  brand: 'bg-brand-400 text-ink-900',
   good: 'bg-emerald-600 text-white',
   info: 'bg-sky-600 text-white',
   warn: 'bg-orange-600 text-white',

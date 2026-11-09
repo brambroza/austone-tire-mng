@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/app-shell'
 import { CompanyCatalogClient, type CompanyCatalogModel } from './catalog-client'
 import type { TireBrand } from '@/lib/database.types'
 
-export const metadata = { title: 'ข้อมูลยาง · Dream Tire' }
+export const metadata = { title: 'ข้อมูลยาง · Austone Tire' }
 
 interface ModelRow {
   id: string
@@ -88,7 +88,7 @@ export default async function CompanyCatalogPage() {
     <>
       <PageHeader
         title="ข้อมูลยาง"
-        subtitle="ยี่ห้อและรุ่นยางที่บริษัทใช้ได้ ถ้ารุ่นที่ต้องการยังไม่มี แจ้ง Dreammaker ได้เลย"
+        subtitle="ยี่ห้อและรุ่นยางที่บริษัทใช้ได้ ถ้ารุ่นที่ต้องการยังไม่มี แจ้ง Austone Thailand ได้เลย"
       />
       <CompanyCatalogClient
         brands={brands}

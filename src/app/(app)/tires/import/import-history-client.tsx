@@ -110,7 +110,7 @@ export function ImportHistoryClient({
             <div className="flex flex-wrap justify-center gap-3">
               <Link
                 href="/tires/import/scan"
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-600 px-5 text-[15px] font-medium text-white hover:bg-brand-700"
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-400 px-5 text-[15px] font-medium text-ink-900 hover:bg-brand-500"
               >
                 <ScanBarcode className="size-5" />
                 คีย์/สแกนซีรีย์
@@ -343,7 +343,7 @@ function BatchRow({
           onClick={(e) => { e.stopPropagation(); onPick(active ? '' : batch.id) }}
           className={cn(
             'inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-medium',
-            active ? 'bg-brand-600 text-white' : 'text-brand-700 hover:bg-brand-50',
+            active ? 'bg-brand-400 text-ink-900' : 'text-brand-700 hover:bg-brand-50',
           )}
         >
           {active ? 'กำลังดู' : 'ดูรายการ'}

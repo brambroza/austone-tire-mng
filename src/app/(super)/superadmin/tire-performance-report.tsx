@@ -457,7 +457,7 @@ export function TirePerformanceReport({
                             <Td className="text-center">
                               <span className={cn(
                                 'inline-flex size-7 items-center justify-center rounded-lg text-xs font-semibold',
-                                index === 0 ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-700',
+                                index === 0 ? 'bg-brand-400 text-ink-900' : 'bg-brand-50 text-brand-700',
                               )}>
                                 {index + 1}
                               </span>

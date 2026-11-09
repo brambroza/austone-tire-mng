@@ -1,10 +1,11 @@
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES, canEditCentral } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
 import { CatalogClient, type CatalogModel } from './catalog-client'
 import type { Company, TireBrand } from '@/lib/database.types'
 
-export const metadata = { title: 'ข้อมูลยาง · Dream Tire Admin' }
+export const metadata = { title: 'ข้อมูลยาง · Austone Tire Admin' }
 
 interface ModelRow {
   id: string
@@ -20,7 +21,7 @@ interface ModelRow {
 }
 
 export default async function CatalogPage() {
-  await requireSession(['super_admin'])
+  const { profile } = await requireSession(AUSTONE_ROLES)
   const supabase = await createClient()
 
   const [{ data: brandData }, { data: modelData }, { data: tireData }, { data: companyData }] =
@@ -66,7 +67,7 @@ export default async function CatalogPage() {
         title="ข้อมูลยาง"
         subtitle="ยี่ห้อ รุ่น ขนาด และดอกยางตอนใหม่ที่ใช้ร่วมกันทุกบริษัท"
       />
-      <CatalogClient brands={(brandData ?? []) as TireBrand[]} models={models} />
+      <CatalogClient brands={(brandData ?? []) as TireBrand[]} models={models} readOnly={!canEditCentral(profile.role)} />
     </>
   )
 }

@@ -8,13 +8,13 @@ import { PageHeader } from '@/components/app-shell'
 import { Badge, Card, EmptyState } from '@/components/ui'
 import { ImportHistoryClient } from './import-history-client'
 
-export const metadata = { title: 'ข้อมูลยางใหม่ · Dream Tire' }
+export const metadata = { title: 'ข้อมูลยางใหม่ · Austone Tire' }
 
 const SECONDARY_LINK =
   'inline-flex min-h-12 items-center gap-2 rounded-xl border border-line bg-white px-4 text-[15px] font-medium text-ink-700 hover:bg-brand-50'
 
 const PRIMARY_LINK =
-  'inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-600 px-5 text-[15px] font-medium text-white hover:bg-brand-700'
+  'inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-400 px-5 text-[15px] font-medium text-ink-900 hover:bg-brand-500'
 
 /**
  * เมนู "ข้อมูลยางใหม่" (แอดมินบริษัท · Premium) — ประวัติการนำเข้าทุกรอบ (ไฟล์ / คีย์-สแกน)

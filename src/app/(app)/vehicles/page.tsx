@@ -8,7 +8,7 @@ import { BRANCH_FILTER_NONE } from './branch-filter'
 import { signVehiclePhotoUrls } from '@/lib/vehicle-photos'
 import type { AxleType, Vehicle } from '@/lib/database.types'
 
-export const metadata = { title: 'จัดการรถ · Dream Tire' }
+export const metadata = { title: 'จัดการรถ · Austone Tire' }
 
 /** หน้ารายการรถของบริษัท — กรองด้วยคำค้นหา (?q=) และสาขา (?branch=, `__none__` = ไม่ระบุสาขา) */
 export default async function VehiclesPage({
@@ -67,7 +67,7 @@ export default async function VehiclesPage({
         axleTypes={(axleTypeData ?? []) as AxleType[]}
         branches={company?.branches ?? []}
         changeAlertLabel={`≥ ${company?.alert_change_count ?? 3} ครั้งใน ${company?.alert_change_days ?? 90} วัน`}
-        companyName={company?.name ?? 'Dream Tire'}
+        companyName={company?.name ?? 'Austone Tire'}
       />
     </>
   )

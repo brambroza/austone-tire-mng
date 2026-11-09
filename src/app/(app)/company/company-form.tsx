@@ -131,7 +131,7 @@ function PlanCard({ company }: { company: Company }) {
             </span>
           )}
         </div>
-        <p className="text-sm text-ink-500">เปลี่ยนแพ็กเกจได้โดยติดต่อ Dreammaker</p>
+        <p className="text-sm text-ink-500">เปลี่ยนแพ็กเกจได้โดยติดต่อ Austone Thailand</p>
       </CardBody>
     </Card>
   )

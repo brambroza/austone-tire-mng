@@ -1,16 +1,17 @@
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { PLAN_LABEL, effectivePlan } from '@/lib/plan'
 import { Badge, Card, CardHeader } from '@/components/ui'
 import { TireImportClient } from '@/app/(app)/tires/import/import-client'
 import type { Company } from '@/lib/database.types'
 
-export const metadata = { title: 'นำเข้าซีรีย์ยางแทนลูกค้า · Dream Tire Admin' }
+export const metadata = { title: 'นำเข้าซีรีย์ยางแทนลูกค้า · Austone Tire Admin' }
 
 /**
- * super admin นำเข้าซีรีย์ยางแทนลูกค้า — ไม่ติดแพ็กเกจ แต่โชว์แพ็กเกจปัจจุบันให้ Dreammaker เห็น
+ * super admin นำเข้าซีรีย์ยางแทนลูกค้า — ไม่ติดแพ็กเกจ แต่โชว์แพ็กเกจปัจจุบันให้ Austone Thailand เห็น
  * (ลูกค้า Standard ที่ส่งไฟล์มาให้ทำแทนก็ได้ ส่วนลูกค้า Premium ทำเองได้ที่ /tires/import)
  */
 export default async function CompanyTireImportPage({
@@ -18,7 +19,7 @@ export default async function CompanyTireImportPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requireSession(['super_admin'])
+  await requireSession(AUSTONE_ROLES)
   const { id } = await params
   const supabase = await createClient()
 
@@ -52,7 +53,7 @@ export default async function CompanyTireImportPage({
         />
       </Card>
       <TireImportClient
-        companyName={company?.name ?? 'Dream Tire'}
+        companyName={company?.name ?? 'Austone Tire'}
         companyId={id}
         basePath={basePath}
       />

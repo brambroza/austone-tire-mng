@@ -19,6 +19,7 @@ import {
   sanitizeOdometer, sanitizePlateNumber, sanitizePlatePrefix, sanitizeSerial, toUpperText,
 } from '@/lib/utils'
 import { IMPORT_NOTE_MAX, OTHER_BRAND, isOtherBrand } from '@/lib/tire-import'
+import { buildShopMountGrant, tireMatchesGrant } from '@/lib/shop-rules'
 import { applyServiceBatchAction, ensureServiceVehicleAction } from './actions'
 import type { AxleCategory, AxleType } from '@/lib/database.types'
 
@@ -95,6 +96,8 @@ interface TirePick {
   serialNo: string
   /** ดอกยางคงเหลือ (มม.) */
   treadMm: string
+  /** true = อ่านซีรีย์ของยางที่ถอดไม่ได้ ระบบจะตั้งซีรีย์แทนให้ (เฉพาะโหมดร้านค้า) */
+  unknownSerial?: boolean
 }
 
 const EMPTY_PICK: TirePick = { modelId: '', stockTireId: '', serialNo: '', treadMm: '' }
@@ -256,6 +259,9 @@ export function ServiceWizard({
   axleTypes,
   models,
   initialVehicleId,
+  companyId,
+  mountModelIds,
+  allowUnknownSerial = false,
 }: {
   vehicles: VehicleLite[]
   tires: TireLite[]
@@ -263,6 +269,15 @@ export function ServiceWizard({
   axleTypes: AxleType[]
   models: TireModelLite[]
   initialVehicleId?: string
+  /** ลูกค้าที่ร้านค้าเลือก — แอดมิน/ช่างไม่ต้องส่ง (ใช้บริษัทตัวเอง) */
+  companyId?: string
+  /**
+   * รหัสรุ่นที่ใส่ได้ (กฎร้านค้า: เฉพาะรุ่นที่ Austone กำหนดให้ร้าน) — ยางที่ถอดออกเป็นรุ่นใดก็ได้
+   * undefined = ไม่จำกัด (โหมดช่าง/แอดมินของบริษัท)
+   */
+  mountModelIds?: string[]
+  /** true = เลือก "ไม่ทราบซีรีย์" ตอนถอดได้ ระบบตั้งซีรีย์แทนให้ */
+  allowUnknownSerial?: boolean
 }) {
   const router = useRouter()
 
@@ -408,6 +423,27 @@ export function ServiceWizard({
     [models],
   )
 
+  /** รุ่นที่ใส่ได้ — โหมดร้านค้าเหลือเฉพาะรุ่นที่ Austone กำหนดให้ร้าน */
+  const mountModels = React.useMemo(() => {
+    if (!mountModelIds) return models
+    const allowed = new Set(mountModelIds)
+    return models.filter((m) => allowed.has(m.id))
+  }, [models, mountModelIds])
+  const mountCatalogOptions = React.useMemo<TireOption[]>(
+    () => toCatalogOptions(mountModels),
+    [mountModels],
+  )
+  /** สิทธิ์ของร้านในรูปที่เทียบกับยางในคลังได้ (ยางเก่าไม่มีรหัสรุ่น จึงเทียบชื่อยี่ห้อ+รุ่น) — null = ไม่จำกัด */
+  const mountGrant = React.useMemo(
+    () => (mountModelIds ? buildShopMountGrant(mountModels) : null),
+    [mountModelIds, mountModels],
+  )
+  /** ยางในคลังที่หยิบไปใส่ได้ — โหมดร้านค้าเหลือเฉพาะเส้นที่ตรงกับรุ่นที่ร้านได้รับ */
+  const mountTires = React.useMemo(
+    () => (mountGrant ? tires.filter((t) => tireMatchesGrant(mountGrant, t)) : tires),
+    [tires, mountGrant],
+  )
+
   const findTire = React.useCallback(
     (serial: string) => {
       const key = serial.trim().toLowerCase()
@@ -477,7 +513,7 @@ export function ServiceWizard({
     if (!code) return false
     const d = draftOf(code)
     return (
-      d.unPick.serialNo.trim() !== '' &&
+      (d.unPick.serialNo.trim() !== '' || d.unPick.unknownSerial === true) &&
       pickSpec(d.unPick).size !== '' &&
       d.unPick.treadMm !== '' &&
       d.reasonId !== '' &&
@@ -491,6 +527,12 @@ export function ServiceWizard({
     const d = draftOf(code)
     const serial = d.mnPick.serialNo.trim()
     const candidate = findTire(serial)
+
+    // โหมดร้านค้า: เส้นเดิมในระบบที่ไม่ตรงรุ่นที่ Austone กำหนดให้ร้าน ใส่ให้ลูกค้าไม่ได้
+    if (mountGrant && candidate && !tireMatchesGrant(mountGrant, candidate)) {
+      const spec = [candidate.brand_name, candidate.model_name].filter(Boolean).join(' ') || 'ไม่ระบุรุ่น'
+      return `ซีรีย์ ${candidate.serial_no} เป็น ${spec} — ร้านค้าใส่ได้เฉพาะรุ่นที่ Austone กำหนดให้ร้าน`
+    }
 
     // ยางใหม่ = ซีรีย์ต้องไม่เคยมีในระบบ ยกเว้นยางใหม่ที่นำเข้าไว้ในคลัง (ยังไม่เคยวิ่ง)
     if (d.mountKind === 'new' && candidate && !(isAvailableStock(candidate) && isFreshTire(candidate))) {
@@ -677,6 +719,7 @@ export function ServiceWizard({
     setError(null)
     setSaving(true)
     const result = await ensureServiceVehicleAction({
+      company_id: companyId,
       vehicle_id: vehicle?.id,
       plate_no: vehicle ? vehicle.plate_no : nameOnly ? null : plateNo,
       nickname: isNewVehicle ? newNickname : undefined,
@@ -803,6 +846,7 @@ export function ServiceWizard({
           ? null
           : {
               serial_no: d.unPick.serialNo.trim(),
+              unknown_serial: d.unPick.unknownSerial === true,
               tire_model_id: unSpecOf.model?.id ?? null,
               brand_name: unSpecOf.brandName || null,
               model_name: unSpecOf.modelName || null,
@@ -865,6 +909,7 @@ export function ServiceWizard({
 
     const wheelCount = positions.length
     const result = await applyServiceBatchAction({
+      company_id: companyId,
       vehicle_id: vehicle.id,
       odometer: Number(odometer),
       event_date: todayISO(),
@@ -984,7 +1029,7 @@ export function ServiceWizard({
                   className={cn(
                     'flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors',
                     index === activeIndex
-                      ? 'border-brand-600 bg-brand-600 text-white'
+                      ? 'border-brand-400 bg-brand-400 text-ink-900'
                       : done
                         ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                         : 'border-rose-300 bg-rose-50 text-rose-700',
@@ -1114,7 +1159,7 @@ export function ServiceWizard({
                 className={cn(
                   'flex h-24 flex-col items-center justify-center gap-1 rounded-2xl border text-xl font-semibold transition-all active:scale-[0.98]',
                   category === value
-                    ? 'border-brand-600 bg-brand-600 text-white'
+                    ? 'border-brand-400 bg-brand-400 text-ink-900'
                     : 'border-line bg-white text-ink-800 hover:border-brand-300 hover:bg-brand-50',
                 )}
               >
@@ -1285,12 +1330,40 @@ export function ServiceWizard({
             treadLabel="ดอกยางเหลือ (มม.)"
             serialError={unmountBlocked ?? undefined}
             knownTire={slotTireOf(position)}
+            serialHidden={unPick.unknownSerial === true}
             treadHint={
               unPick.stockTireId && unPick.stockTireId === slotTireOf(position)?.id
                 ? `วัดดอกยางตอนถอด${slotTireOf(position)?.tread_mm != null ? ` · บันทึกครั้งก่อน ${slotTireOf(position)?.tread_mm} มม.` : ''}`
                 : undefined
             }
           />
+
+          {/* ร้านค้า: ยางที่ถอดออกอาจอ่านซีรีย์ไม่ได้ — ระบบตั้งซีรีย์แทน (UNK-...) ให้ยังมีประวัติการถอด
+              แสดงเฉพาะล้อที่ระบบไม่มียางบันทึกไว้ — ถ้ามีเส้นเดิมอยู่ ให้ถอดเส้นนั้นตามข้อมูลระบบ (ซีรีย์แทนจะชนตำแหน่งล้อ) */}
+          {allowUnknownSerial && !slotTireOf(position) && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-dashed border-line px-4 py-3 text-sm text-ink-700">
+              <input
+                type="checkbox"
+                className="mt-0.5 size-5 accent-brand-600"
+                checked={unPick.unknownSerial === true}
+                onChange={(e) =>
+                  setUnPick({
+                    ...unPick,
+                    unknownSerial: e.target.checked,
+                    // ตัดซีรีย์/เส้นในคลังที่เลือกไว้ทิ้ง เพื่อไม่ให้ค่าค้างปนกับซีรีย์ที่ระบบจะตั้งให้
+                    stockTireId: e.target.checked ? '' : unPick.stockTireId,
+                    serialNo: e.target.checked ? '' : unPick.serialNo,
+                  })
+                }
+              />
+              <span>
+                <span className="font-medium">ไม่ทราบ / อ่านซีรีย์ไม่ได้</span>
+                <span className="block text-xs text-ink-500">
+                  ระบบจะตั้งซีรีย์แทนให้ (ขึ้นต้น UNK-) ยังเลือกขนาด/รุ่นและดอกยางตามปกติ
+                </span>
+              </span>
+            </label>
+          )}
 
           <Field label="สาเหตุ" required>
             <Select value={reasonId} onChange={(e) => setReasonId(e.target.value)}>
@@ -1337,7 +1410,7 @@ export function ServiceWizard({
                 className={cn(
                   'h-24 rounded-2xl border text-xl font-semibold transition-all active:scale-[0.98]',
                   mountKind === option.value
-                    ? 'border-brand-600 bg-brand-600 text-white'
+                    ? 'border-brand-400 bg-brand-400 text-ink-900'
                     : 'border-line bg-white text-ink-800 hover:border-brand-300 hover:bg-brand-50',
                 )}
               >
@@ -1360,9 +1433,9 @@ export function ServiceWizard({
             pick={mnPick}
             onChange={setMnPick}
             mountKind={mountKind === 'used' ? 'used' : 'new'}
-            models={models}
-            catalogOptions={catalogOptions}
-            tires={tires}
+            models={mountModels}
+            catalogOptions={mountCatalogOptions}
+            tires={mountTires}
             serialError={mountBlocked ?? undefined}
             mountedText={(tire) =>
               `ติดอยู่ที่ ${vehicleLabel(tire, 'รถคันอื่น')} ${positionLabel(tire.position_code, null, axleTypes)} — ต้องถอดก่อน`
@@ -1458,7 +1531,7 @@ export function ServiceWizard({
               <li key={code} className="rounded-xl bg-surface-alt px-4 py-3 ring-1 ring-inset ring-line">
                 <p className="text-[15px] font-semibold text-ink-900">{wheelName(code)}</p>
                 <p className="mt-1 text-sm text-ink-600">
-                  ถอด {pickLabel(d.unPick)} · ซีรีย์ {d.unPick.serialNo || '-'}
+                  ถอด {pickLabel(d.unPick)} · ซีรีย์ {d.unPick.unknownSerial ? 'ไม่ทราบ (ระบบตั้งให้)' : d.unPick.serialNo || '-'}
                 </p>
                 {d.note.trim() !== '' && (
                   <p className="mt-0.5 text-sm text-ink-500">หมายเหตุ: {d.note.trim()}</p>
@@ -1789,9 +1862,12 @@ function TirePickFields({
   stockOnlyUntilSearch,
   knownTire,
   treadHint,
+  serialHidden = false,
 }: {
   pick: TirePick
   onChange: (pick: TirePick) => void
+  /** true = ซ่อนช่องซีรีย์ (เลือก "ไม่ทราบซีรีย์" ไว้ ระบบจะตั้งให้เอง) */
+  serialHidden?: boolean
   /**
    * ยางที่ระบบบันทึกว่าติดอยู่ล้อนี้ — ใช้แสดงชื่อเมื่อถูกตั้งเป็นค่าเริ่มต้นของการถอด
    * (ไม่อยู่ใน options เพราะไม่ใช่ยางว่างในคลัง)
@@ -1862,6 +1938,11 @@ function TirePickFields({
         />
       </Field>
 
+      {serialHidden ? (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 ring-1 ring-inset ring-amber-200">
+          ไม่ทราบซีรีย์ — ระบบจะตั้งซีรีย์แทนให้ตอนบันทึก (ขึ้นต้น UNK-)
+        </p>
+      ) : (
       <Field
         label="ซีรีย์ยาง"
         required
@@ -1899,6 +1980,7 @@ function TirePickFields({
           />
         )}
       </Field>
+      )}
 
       {withTread && (
         <Field label={treadLabel} required hint={treadHint}>

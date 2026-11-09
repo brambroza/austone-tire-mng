@@ -1,5 +1,5 @@
 /**
- * สร้างบัญชี Super Admin (Dreammaker) ให้ระบบ Dream Tire
+ * สร้างบัญชี Super Admin (Austone Thailand) ให้ระบบ Austone Tire
  *
  * ใช้ service role key จึงต้องรันฝั่ง server เท่านั้น
  * ห้ามใส่รหัสผ่านลงไฟล์นี้ — ส่งผ่าน argument ตอนรัน
@@ -11,7 +11,7 @@
  */
 import { createClient } from '@supabase/supabase-js'
 
-const [email, password, fullName = 'Dreammaker Admin'] = process.argv.slice(2)
+const [email, password, fullName = 'Austone Thailand Admin'] = process.argv.slice(2)
 
 if (!email || !password) {
   console.error('ใช้งาน: node --env-file=.env scripts/create-super-admin.mjs <email> <password> [ชื่อ]')

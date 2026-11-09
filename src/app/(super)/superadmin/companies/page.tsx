@@ -1,10 +1,13 @@
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES, canEditCentral } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
 import { PageHeader } from '@/components/app-shell'
 import { CompaniesClient, type CompanyRow } from './companies-client'
-import type { Company } from '@/lib/database.types'
+import type { Company, Shop } from '@/lib/database.types'
 
-export const metadata = { title: 'ข้อมูลลูกค้า · Dream Tire Admin' }
+export const metadata = { title: 'ลูกค้าปลายทาง · Austone Tire Admin' }
 
 /** นับจำนวนแถวตาม company_id */
 function countBy(rows: Array<{ company_id: string | null }>): Map<string, number> {
@@ -22,7 +25,7 @@ export default async function CompaniesPage({
 }: {
   searchParams: Promise<{ q?: string }>
 }) {
-  await requireSession(['super_admin'])
+  const { profile } = await requireSession(AUSTONE_ROLES)
   const { q } = await searchParams
   const supabase = await createClient()
 
@@ -34,13 +37,16 @@ export default async function CompaniesPage({
     )
   }
 
-  const [{ data: companyData }, { data: vehicles }, { data: tires }, { data: profiles }] =
+  const [{ data: companyData }, { data: vehicles }, { data: tires }, { data: profiles }, { data: shopData }] =
     await Promise.all([
       query,
       supabase.from('vehicles').select('company_id'),
       supabase.from('tires').select('company_id'),
       supabase.from('profiles').select('company_id'),
+      supabase.from('shops').select('*').order('name'),
     ])
+  const shops = (shopData ?? []) as Shop[]
+  const shopName = new Map(shops.map((s) => [s.id, s.name]))
 
   const vehicleCount = countBy(vehicles ?? [])
   const tireCount = countBy(tires ?? [])
@@ -51,15 +57,20 @@ export default async function CompaniesPage({
     vehicle_count: vehicleCount.get(c.id) ?? 0,
     tire_count: tireCount.get(c.id) ?? 0,
     user_count: userCount.get(c.id) ?? 0,
+    shop_name: c.shop_id ? shopName.get(c.shop_id) ?? null : null,
   }))
 
   return (
     <>
+      <Link href="/superadmin/shops" className="mb-4 inline-flex items-center gap-1.5 text-sm text-ink-500 hover:text-brand-600">
+        <ArrowLeft className="size-4" />
+        กลับไปร้านค้า/ดีลเลอร์
+      </Link>
       <PageHeader
-        title="ข้อมูลลูกค้า"
-        subtitle="รายชื่อลูกค้า แพ็กเกจ และสถานะการใช้งาน"
+        title="ลูกค้าปลายทางทั้งหมด"
+        subtitle="ลูกค้าของทุกร้านค้า/ดีลเลอร์ในที่เดียว — แพ็กเกจ สถานะ และร้านที่ดูแล"
       />
-      <CompaniesClient companies={companies} />
+      <CompaniesClient companies={companies} shops={shops} readOnly={!canEditCentral(profile.role)} />
     </>
   )
 }

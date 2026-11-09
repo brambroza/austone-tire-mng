@@ -1,8 +1,9 @@
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES, canEditCentral } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { TireAccessClient, type AccessModel } from '../tire-access-client'
 
-export const metadata = { title: 'สิทธิ์การมองเห็นยาง · Dream Tire Admin' }
+export const metadata = { title: 'สิทธิ์การมองเห็นยาง · Austone Tire Admin' }
 
 interface ModelRow {
   id: string
@@ -18,7 +19,7 @@ export default async function CompanyAccessPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requireSession(['super_admin'])
+  const { profile } = await requireSession(AUSTONE_ROLES)
   const { id } = await params
   const supabase = await createClient()
 
@@ -42,6 +43,7 @@ export default async function CompanyAccessPage({
 
   return (
     <TireAccessClient
+      readOnly={!canEditCentral(profile.role)}
       companyId={id}
       models={models}
       allowed={(accessData ?? []).map((a) => a.tire_model_id)}

@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
 import { MileageClient, type MileageVehicle } from './mileage-client'
 
-export const metadata = { title: 'บันทึกเลขไมล์ · Dream Tire' }
+export const metadata = { title: 'บันทึกเลขไมล์ · Austone Tire' }
 
 /**
  * หน้าบันทึกเลขไมล์รถโดยไม่ต้องถอด-ใส่ยาง

@@ -156,7 +156,7 @@ export function Pagination<T>({
                 className={cn(
                   PAGE_BTN,
                   p === page
-                    ? 'bg-brand-600 text-white'
+                    ? 'bg-brand-400 text-ink-900'
                     : 'text-ink-600 hover:bg-brand-50 hover:text-brand-600',
                 )}
               >

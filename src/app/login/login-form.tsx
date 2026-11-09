@@ -35,13 +35,17 @@ function readRemembered(): RememberedLogin | null {
 export function LoginForm() {
   const router = useRouter()
   const params = useSearchParams()
+  /** ข้อความเริ่มต้นเมื่อถูกส่งมาจาก /auth/signout?reason=inactive (บัญชีถูกปิดใช้งาน) */
+  const initialError = params.get('reason') === 'inactive'
+    ? 'บัญชีนี้ถูกปิดใช้งานแล้ว กรุณาติดต่อผู้ดูแลระบบของคุณ'
+    : null
   const formRef = React.useRef<HTMLFormElement>(null)
   const errorRef = React.useRef<HTMLDivElement>(null)
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
+  const [error, setError] = React.useState<string | null>(initialError)
   /** จำอีเมลและรหัสผ่านไว้ในเครื่องนี้ (ปิดไว้เป็นค่าเริ่มต้น) */
   const [remember, setRemember] = React.useState(false)
 

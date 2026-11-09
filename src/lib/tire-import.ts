@@ -49,7 +49,7 @@ export const IMPORT_TEMPLATE_COLUMNS: ReadonlyArray<{
     key: 'brand',
     header: 'ยี่ห้อ',
     required: true,
-    hint: 'ยี่ห้อตามเมนูข้อมูลยางของบริษัท หรือ "อื่นๆ" — ระบบไม่สร้างยี่ห้อใหม่ให้ ต้องให้ Dreammaker เพิ่ม/เปิดสิทธิ์ก่อน',
+    hint: 'ยี่ห้อตามเมนูข้อมูลยางของบริษัท หรือ "อื่นๆ" — ระบบไม่สร้างยี่ห้อใหม่ให้ ต้องให้ Austone Thailand เพิ่ม/เปิดสิทธิ์ก่อน',
     examples: ['Michelin', OTHER_BRAND],
   },
   {

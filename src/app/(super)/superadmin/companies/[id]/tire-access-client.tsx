@@ -7,6 +7,7 @@ import { Button, Card, CardBody, CardHeader } from '@/components/ui'
 import { TireSpec } from '@/components/tire-spec'
 import { cn } from '@/lib/utils'
 import { setCompanyTireModels } from '../../actions'
+import type { ActionResult } from '@/lib/action-result'
 
 export interface AccessModel {
   id: string
@@ -18,15 +19,28 @@ export interface AccessModel {
 
 /**
  * กำหนดว่าบริษัทนี้เห็นยางรุ่นใดได้บ้าง (ตามสเปค: super admin กำหนดสิทธิ์รายบริษัท)
+ * ใช้ซ้ำกับหน้า "รุ่นยางที่กำหนดให้ร้าน" โดยส่ง `save` + ข้อความหัวการ์ดมาแทน
  */
 export function TireAccessClient({
   companyId,
   models,
   allowed,
+  save,
+  title = 'สิทธิ์การมองเห็นยาง',
+  description = 'ติ๊กรุ่นที่จะให้บริษัทนี้เลือกใช้',
+  emptyText = 'ยังไม่มีรุ่นยางในแคตตาล็อกกลาง — เพิ่มได้ที่เมนู “ข้อมูลยาง”',
+  readOnly = false,
 }: {
   companyId: string
   models: AccessModel[]
   allowed: string[]
+  /** ตัวบันทึก — ค่าเริ่มต้นบันทึกสิทธิ์ของบริษัท (ส่ง server action ที่ bind แล้วมาเพื่อใช้กับร้านค้า) */
+  save?: (ids: string[]) => Promise<ActionResult>
+  title?: string
+  description?: string
+  emptyText?: string
+  /** true = ดูอย่างเดียว (เซล) — ติ๊กไม่ได้ ไม่มีปุ่มบันทึก */
+  readOnly?: boolean
 }) {
   const router = useRouter()
   const [selected, setSelected] = React.useState<Set<string>>(new Set(allowed))
@@ -68,7 +82,7 @@ export function TireAccessClient({
   async function handleSave() {
     setSaving(true)
     setError(null)
-    const result = await setCompanyTireModels(companyId, [...selected])
+    const result = await (save ? save([...selected]) : setCompanyTireModels(companyId, [...selected]))
     setSaving(false)
     if (!result.ok) {
       setError(result.error)
@@ -81,8 +95,8 @@ export function TireAccessClient({
   return (
     <Card>
       <CardHeader
-        title="สิทธิ์การมองเห็นยาง"
-        description="ติ๊กรุ่นที่จะให้บริษัทนี้เลือกใช้"
+        title={title}
+        description={description}
         action={
           <div className="flex items-center gap-3">
             {saved && (
@@ -91,9 +105,11 @@ export function TireAccessClient({
                 บันทึกแล้ว
               </span>
             )}
-            <Button size="sm" onClick={handleSave} loading={saving}>
-              บันทึกสิทธิ์ ({selected.size})
-            </Button>
+            {!readOnly && (
+              <Button size="sm" onClick={handleSave} loading={saving}>
+                บันทึกสิทธิ์ ({selected.size})
+              </Button>
+            )}
           </div>
         }
       />
@@ -105,9 +121,7 @@ export function TireAccessClient({
         )}
 
         {grouped.length === 0 ? (
-          <p className="py-6 text-center text-sm text-ink-400">
-            ยังไม่มีรุ่นยางในแคตตาล็อกกลาง — เพิ่มได้ที่เมนู “ข้อมูลยาง”
-          </p>
+          <p className="py-6 text-center text-sm text-ink-400">{emptyText}</p>
         ) : (
           grouped.map(([brand, list]) => {
             const allSelected = list.every((m) => selected.has(m.id))
@@ -130,7 +144,8 @@ export function TireAccessClient({
                       <button
                         key={m.id}
                         type="button"
-                        onClick={() => toggle(m.id)}
+                        onClick={() => !readOnly && toggle(m.id)}
+                        disabled={readOnly}
                         className={cn(
                           'flex items-center gap-3 rounded-xl border p-3 text-left transition-all active:scale-[0.99]',
                           active
@@ -141,7 +156,7 @@ export function TireAccessClient({
                         <span
                           className={cn(
                             'flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors',
-                            active ? 'border-brand-600 bg-brand-600 text-white' : 'border-slate-300',
+                            active ? 'border-brand-400 bg-brand-400 text-ink-900' : 'border-slate-300',
                           )}
                         >
                           {active && <Check className="size-3.5" />}

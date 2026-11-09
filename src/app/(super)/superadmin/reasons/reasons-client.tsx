@@ -13,7 +13,7 @@ import type { RemovalReason } from '@/lib/database.types'
 const EMPTY: ReasonInput = { code: '', name: '', is_scrap: false, sort_order: 0 }
 
 /** ตั้งค่าสาเหตุการถอดยางที่ช่างจะเลือกได้หน้างาน */
-export function ReasonsClient({ reasons }: { reasons: RemovalReason[] }) {
+export function ReasonsClient({ reasons, readOnly = false }: { reasons: RemovalReason[]; /** true = ดูอย่างเดียว (เซล) */ readOnly?: boolean }) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<RemovalReason | null>(null)
@@ -67,19 +67,21 @@ export function ReasonsClient({ reasons }: { reasons: RemovalReason[] }) {
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
-        <Button onClick={openCreate}>
-          <Plus className="size-4.5" />
-          เพิ่มสาเหตุ
-        </Button>
-      </div>
+      {!readOnly && (
+        <div className="mb-4 flex justify-end">
+          <Button onClick={openCreate}>
+            <Plus className="size-4.5" />
+            เพิ่มสาเหตุ
+          </Button>
+        </div>
+      )}
 
       <Card>
         {reasons.length === 0 ? (
           <EmptyState
             icon={<SlidersHorizontal className="size-6" />}
             title="ยังไม่มีสาเหตุการถอดยาง"
-            action={<Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มสาเหตุ</Button>}
+            action={!readOnly && <Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มสาเหตุ</Button>}
           />
         ) : (
           <TableWrap>
@@ -112,6 +114,7 @@ export function ReasonsClient({ reasons }: { reasons: RemovalReason[] }) {
                     </Td>
                     <Td>
                       <div className="flex items-center justify-end gap-1">
+                        {!readOnly && <>
                         <button
                           type="button" onClick={() => openEdit(r)} aria-label="แก้ไข"
                           className="flex size-11 items-center justify-center rounded-lg text-ink-500 hover:bg-brand-50 hover:text-brand-600"
@@ -125,6 +128,7 @@ export function ReasonsClient({ reasons }: { reasons: RemovalReason[] }) {
                         >
                           {r.is_active ? <PowerOff className="size-4.5" /> : <Power className="size-4.5" />}
                         </button>
+                        </>}
                       </div>
                     </Td>
                   </tr>

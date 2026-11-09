@@ -52,9 +52,12 @@ const isPendingModel = (model: CatalogModel) =>
 
 /** จัดการข้อมูลยางกลาง: ยี่ห้อ / รุ่น / ขนาด / ดอกยางตอนใหม่ */
 export function CatalogClient({
+  readOnly = false,
   brands,
   models,
 }: {
+  /** true = ดูอย่างเดียว (เซล) ซ่อนปุ่มเพิ่ม/แก้ไข */
+  readOnly?: boolean
   brands: TireBrand[]
   models: CatalogModel[]
 }) {
@@ -182,19 +185,19 @@ export function CatalogClient({
         <CardHeader
           title="ยี่ห้อยาง"
           description={`${brands.length} ยี่ห้อ`}
-          action={
+          action={!readOnly && (
             <Button size="sm" variant="secondary" onClick={() => setBrandOpen(true)}>
               <Plus className="size-4" />
               เพิ่ม
             </Button>
-          }
+          )}
         />
         <CardBody className="space-y-1.5">
           <button
             type="button"
             onClick={() => setFilterBrand('')}
             className={`tap-target flex w-full items-center justify-between rounded-xl px-3 text-left text-[15px] transition-colors ${
-              filterBrand === '' ? 'bg-brand-600 text-white' : 'text-ink-700 hover:bg-brand-50'
+              filterBrand === '' ? 'bg-brand-400 text-ink-900' : 'text-ink-700 hover:bg-brand-50'
             }`}
           >
             ทั้งหมด
@@ -208,7 +211,7 @@ export function CatalogClient({
                   type="button"
                   onClick={() => setFilterBrand(b.id)}
                   className={`tap-target flex flex-1 items-center justify-between rounded-xl px-3 text-left text-[15px] transition-colors ${
-                    filterBrand === b.id ? 'bg-brand-600 text-white' : 'text-ink-700 hover:bg-brand-50'
+                    filterBrand === b.id ? 'bg-brand-400 text-ink-900' : 'text-ink-700 hover:bg-brand-50'
                   }`}
                 >
                   <span className="truncate">
@@ -240,12 +243,12 @@ export function CatalogClient({
               ? `มี ${pendingCount} รายการจากหน้างานรอแอดมินตรวจสอบและแก้ไข`
               : 'ข้อมูลกลางที่นำไปกำหนดสิทธิ์ให้ลูกค้าแต่ละราย'
           }
-          action={
+          action={!readOnly && (
             <Button size="sm" onClick={openCreateModel} disabled={brands.length === 0}>
               <Plus className="size-4" />
               เพิ่มรุ่นยาง
             </Button>
-          }
+          )}
         />
         {filteredModels.length === 0 ? (
           <EmptyState
@@ -300,6 +303,7 @@ export function CatalogClient({
                     </Td>
                     <Td>
                       <div className="flex items-center justify-end gap-1">
+                        {!readOnly && <>
                         <button
                           type="button" onClick={() => openEditModel(m)} aria-label="แก้ไข"
                           className="flex size-11 items-center justify-center rounded-lg text-ink-500 hover:bg-brand-50 hover:text-brand-600"
@@ -313,6 +317,7 @@ export function CatalogClient({
                         >
                           {m.is_active ? <PowerOff className="size-4.5" /> : <Power className="size-4.5" />}
                         </button>
+                        </>}
                       </div>
                     </Td>
                   </tr>

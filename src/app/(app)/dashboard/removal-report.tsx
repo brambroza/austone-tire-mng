@@ -184,7 +184,7 @@ export function RemovalReport({
                   </div>
                   <div className="h-4 overflow-hidden rounded-md border border-line bg-surface-alt">
                     <div
-                      className="h-full rounded-md bg-brand-600"
+                      className="h-full rounded-md bg-brand-500"
                       style={{ width: `${Math.max(reason.percentage, 2)}%` }}
                     />
                   </div>

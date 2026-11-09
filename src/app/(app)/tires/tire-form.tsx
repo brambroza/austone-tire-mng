@@ -270,7 +270,7 @@ export function TireFormModal({
                 models.length === 0
                   ? canCustom
                     ? 'ยังไม่มีรุ่นยางที่เปิดสิทธิ์ให้บริษัทนี้ พิมพ์ยี่ห้อ/รุ่นเองได้'
-                    : 'ยังไม่มีรุ่นยางที่เปิดสิทธิ์ให้บริษัทนี้ แจ้ง Dreammaker เปิดสิทธิ์ก่อน'
+                    : 'ยังไม่มีรุ่นยางที่เปิดสิทธิ์ให้บริษัทนี้ แจ้ง Austone Thailand เปิดสิทธิ์ก่อน'
                   : selectedModel && isSuperAdmin
                     ? `ดอกยางตอนใหม่จากแคตตาล็อก: ${selectedModel.new_tread_mm ?? EMPTY.new_tread_mm} มม.`
                     : undefined

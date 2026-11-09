@@ -27,7 +27,7 @@ import { dateRangeLabel } from './removal-report-types'
 import type { RemovalReasonOption, RemovalReportRow } from './removal-report-types'
 import type { TireOverview } from '@/lib/database.types'
 
-export const metadata = { title: 'ภาพรวม · Dream Tire' }
+export const metadata = { title: 'ภาพรวม · Austone Tire' }
 
 /** จำนวนแถวสูงสุดต่อกลุ่มในการ์ด "ยางครบระยะสะสม" */
 const DASHBOARD_LIFETIME_ITEMS = 10
@@ -464,7 +464,7 @@ export default async function DashboardPage({
       </Card>
 
       <RemovalReport
-        companyName={company?.name ?? 'Dream Tire'}
+        companyName={company?.name ?? 'Austone Tire'}
         rows={removalRows}
         reasons={removalReasons}
         range={range}

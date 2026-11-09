@@ -10,14 +10,14 @@ const thai = IBM_Plex_Sans_Thai({
 })
 
 export const metadata: Metadata = {
-  title: 'Dream Tire — ระบบจัดการยางรถบรรทุก',
+  title: 'Austone Tire — ระบบจัดการยางรถบรรทุก',
   description: 'บันทึกถอด-ใส่ยางและติดตามระยะวิ่งของยางแต่ละเส้น แจ้งเตือนเมื่อถึงเกณฑ์',
-  applicationName: 'Dream Tire',
-  appleWebApp: { capable: true, title: 'Dream Tire', statusBarStyle: 'default' },
+  applicationName: 'Austone Tire',
+  appleWebApp: { capable: true, title: 'Austone Tire', statusBarStyle: 'default' },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#f0f8ff',
+  themeColor: '#fefce6',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1, // กัน iPad zoom ตอนโฟกัส input

@@ -10,7 +10,7 @@ import { fetchLastRemovals } from '@/lib/tire-events'
 import { computeTireStats, filterTiresByDate, filterTiresByStatus, parseTireDateFilter } from './tire-filters'
 import type { Tire, TireOverview } from '@/lib/database.types'
 
-export const metadata = { title: 'คลังยาง · Dream Tire' }
+export const metadata = { title: 'คลังยาง · Austone Tire' }
 
 interface ModelRow {
   id: string
@@ -116,7 +116,7 @@ export default async function TiresPage({
         canAdd={canAddManual}
         addLockedMessage={isAdmin && !canAddManual ? featureLockedMessage('tire_manual_add') : undefined}
         allowOwnCatalog={canOwnCatalog}
-        companyName={company?.name ?? 'Dream Tire'}
+        companyName={company?.name ?? 'Austone Tire'}
         stats={stats}
       />
     </>

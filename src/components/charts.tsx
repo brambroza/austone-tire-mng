@@ -6,7 +6,7 @@ import {
 } from 'recharts'
 import { formatNumber } from '@/lib/utils'
 
-const PALETTE = ['#1f8cf5', '#4aabff', '#85c9ff', '#b9dfff', '#0d57b4']
+const PALETTE = ['#f5e907', '#f7ec4a', '#fbf27a', '#a3851a', '#1a1a1a']
 
 export interface Slice {
   name: string
@@ -42,7 +42,7 @@ export function StatusDonut({ data, centerLabel }: { data: Slice[]; centerLabel?
             formatter={(v, n) => [`${formatNumber(Number(v))} เส้น`, String(n ?? '')]}
             contentStyle={{
               borderRadius: 12,
-              border: '1px solid #e3edf9',
+              border: '1px solid #e8e8e4',
               boxShadow: '0 8px 24px -12px rgba(15,28,46,0.3)',
               fontSize: 13,
             }}
@@ -54,8 +54,8 @@ export function StatusDonut({ data, centerLabel }: { data: Slice[]; centerLabel?
             iconType="circle"
             iconSize={8}
             formatter={(value, entry) => (
-              <span style={{ color: '#2c405b', fontSize: 13 }}>
-                {value} <span style={{ color: '#8397ad' }}>
+              <span style={{ color: '#454444', fontSize: 13 }}>
+                {value} <span style={{ color: '#a0a09f' }}>
                   {formatNumber((entry?.payload as unknown as Slice)?.value ?? 0)}
                 </span>
               </span>
@@ -87,21 +87,21 @@ export function MonthlyEventsChart({ data }: { data: MonthPoint[] }) {
     <div className="h-64 w-full">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }} barGap={4}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e3edf9" vertical={false} />
-          <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#8397ad' }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 12, fill: '#8397ad' }} axisLine={false} tickLine={false} allowDecimals={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#e8e8e4" vertical={false} />
+          <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#a0a09f' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 12, fill: '#a0a09f' }} axisLine={false} tickLine={false} allowDecimals={false} />
           <Tooltip
-            cursor={{ fill: '#f0f8ff' }}
+            cursor={{ fill: '#fefce6' }}
             contentStyle={{
               borderRadius: 12,
-              border: '1px solid #e3edf9',
+              border: '1px solid #e8e8e4',
               boxShadow: '0 8px 24px -12px rgba(15,28,46,0.3)',
               fontSize: 13,
             }}
           />
-          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 13, color: '#2c405b' }} />
-          <Bar dataKey="mount" name="ใส่ยาง" fill="#1f8cf5" radius={[6, 6, 0, 0]} maxBarSize={28} />
-          <Bar dataKey="unmount" name="ถอดยาง" fill="#b9dfff" radius={[6, 6, 0, 0]} maxBarSize={28} />
+          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 13, color: '#454444' }} />
+          <Bar dataKey="mount" name="ใส่ยาง" fill="#f5e907" radius={[6, 6, 0, 0]} maxBarSize={28} />
+          <Bar dataKey="unmount" name="ถอดยาง" fill="#2f2e2e" radius={[6, 6, 0, 0]} maxBarSize={28} />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -1,6 +1,7 @@
 'use server'
 
 import { vehicleLabel } from '@/lib/vehicle-display'
+import { canEditCentral } from '@/lib/roles'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { resolveCompanyScope } from '@/lib/company-scope'
@@ -75,7 +76,7 @@ const fileNameSchema = z.string().trim().min(1).max(200)
 async function resolveImportScope(companyId?: string) {
   const scope = await resolveCompanyScope(['admin'], companyId)
   if (!scope.ok) return scope
-  if (scope.session.profile.role !== 'super_admin' && !hasFeature(scope.session.company, 'tire_import')) {
+  if (!canEditCentral(scope.session.profile.role) && !hasFeature(scope.session.company, 'tire_import')) {
     return { ok: false as const, error: featureLockedMessage('tire_import') }
   }
   return scope
@@ -245,8 +246,8 @@ async function checkRows(
         ...base,
         status: 'error',
         message: isOtherBrand(row.brand)
-          ? `ไม่มีรุ่น "อื่นๆ" ขนาด ${row.size} ในแคตตาล็อก — แจ้ง Dreammaker เพิ่มขนาดนี้`
-          : 'ไม่พบยี่ห้อ/รุ่น/ขนาดนี้ในข้อมูลยางของบริษัท — ตรวจการสะกด หรือแจ้ง Dreammaker เพิ่ม/เปิดสิทธิ์รุ่นนี้ก่อนนำเข้า',
+          ? `ไม่มีรุ่น "อื่นๆ" ขนาด ${row.size} ในแคตตาล็อก — แจ้ง Austone Thailand เพิ่มขนาดนี้`
+          : 'ไม่พบยี่ห้อ/รุ่น/ขนาดนี้ในข้อมูลยางของบริษัท — ตรวจการสะกด หรือแจ้ง Austone Thailand เพิ่ม/เปิดสิทธิ์รุ่นนี้ก่อนนำเข้า',
         resolved: null,
       }
     }

@@ -1,5 +1,5 @@
 -- ============================================================
--- DREAM TIRE MANAGEMENT — Database Schema
+-- Austone Tire MANAGEMENT — Database Schema
 -- PostgreSQL / Supabase
 -- ============================================================
 -- Run order: schema.sql -> seed.sql
@@ -11,13 +11,18 @@ create extension if not exists "pg_trgm";
 -- เลขรันสำหรับรหัสบริษัท C0001, C0002, ...
 create sequence if not exists public.company_code_seq start with 1 increment by 1;
 grant usage, select on sequence public.company_code_seq to authenticated;
+-- เลขรันสำหรับรหัสร้านค้า S0001, S0002, ... — migration 021
+create sequence if not exists public.shop_code_seq start with 1 increment by 1;
+grant usage, select on sequence public.shop_code_seq to authenticated;
 
 -- ------------------------------------------------------------
 -- ENUMS
 -- ------------------------------------------------------------
 do $$ begin
-  create type user_role as enum ('super_admin', 'admin', 'technician');
+  create type user_role as enum ('super_admin', 'austone_admin', 'sales', 'admin', 'technician', 'shop');
 exception when duplicate_object then null; end $$;
+-- โปรเจกต์เดิมที่มี enum อยู่แล้ว: เพิ่มค่า 'shop' (ร้านค้า) — migration 020
+alter type public.user_role add value if not exists 'shop';
 
 do $$ begin
   create type tire_status as enum ('in_stock', 'mounted', 'scrapped', 'retreading');
@@ -26,6 +31,25 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   create type tire_event_type as enum ('mount', 'unmount');
 exception when duplicate_object then null; end $$;
+
+-- ------------------------------------------------------------
+-- shops : ร้านค้าที่เปลี่ยนยางให้บริษัทลูกค้าหลายราย (Austone Thailand สร้าง) — migration 021
+-- ------------------------------------------------------------
+create table if not exists public.shops (
+  id            uuid primary key default gen_random_uuid(),
+  code          text not null unique default (
+    'S' || lpad(nextval('public.shop_code_seq')::text, 4, '0')
+  ),
+  name          text not null,
+  tax_id        text,
+  phone         text,
+  email         text,
+  address       text,
+  contact_name  text,
+  is_active     boolean not null default true,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
 
 -- ------------------------------------------------------------
 -- companies : ลูกค้า (บริษัทขนส่ง) 1 แถว = 1 tenant
@@ -62,18 +86,27 @@ create table if not exists public.companies (
   plan_expires_at date,
   -- รายชื่อสาขา/หน่วยงาน (แอดมินบริษัทตั้งเอง) ใช้เป็นตัวเลือกช่อง vehicles.branch
   branches      text[] not null default '{}',
+  -- ร้านค้าที่ดูแลบริษัทนี้ — null = ลูกค้าตรงของ Austone Thailand (migration 021)
+  shop_id       uuid references public.shops(id) on delete set null,
+  -- ลิงก์ส่วนตัว /p/<token> ให้บริษัทดูประวัติยางตัวเองโดยไม่ต้อง login — null = ยังไม่เปิด (migration 022)
+  public_token  text unique,
+  public_token_created_at timestamptz,
   is_active     boolean not null default true,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now()
 );
+create index if not exists companies_shop_idx on public.companies(shop_id) where shop_id is not null;
 
 -- ------------------------------------------------------------
--- profiles : ผูกกับ auth.users, กำหนด role + สังกัดบริษัท
--- super_admin (Dreammaker) จะมี company_id = null
+-- profiles : ผูกกับ auth.users, กำหนด role + สังกัดบริษัท/ร้านค้า
+-- super_admin (Austone Thailand) : company_id = null, shop_id = null
+-- shop (พนักงานร้านค้า)     : shop_id เท่านั้น — migration 021
+-- admin / technician        : company_id เท่านั้น
 -- ------------------------------------------------------------
 create table if not exists public.profiles (
   id          uuid primary key references auth.users(id) on delete cascade,
   company_id  uuid references public.companies(id) on delete cascade,
+  shop_id     uuid references public.shops(id) on delete cascade,
   role        user_role not null default 'technician',
   full_name   text not null,
   phone       text,
@@ -81,11 +114,14 @@ create table if not exists public.profiles (
   is_active   boolean not null default true,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
-  constraint profiles_company_required
-    check ((role = 'super_admin' and company_id is null)
-        or (role <> 'super_admin' and company_id is not null))
+  constraint profiles_tenant_check check (
+    (role in ('super_admin', 'austone_admin', 'sales') and company_id is null and shop_id is null)
+    or (role = 'shop' and shop_id is not null and company_id is null)
+    or (role in ('admin', 'technician') and company_id is not null and shop_id is null)
+  )
 );
 create index if not exists profiles_company_idx on public.profiles(company_id);
+create index if not exists profiles_shop_idx on public.profiles(shop_id) where shop_id is not null;
 
 -- ------------------------------------------------------------
 -- removal_reasons : สาเหตุการถอดยาง (super admin config ได้)
@@ -138,6 +174,28 @@ create table if not exists public.company_tire_models (
   created_at   timestamptz not null default now(),
   primary key (company_id, tire_model_id)
 );
+
+-- รุ่นยางที่ Austone อนุญาตให้ร้านค้าแต่ละแห่งใส่ให้ลูกค้า (migration 022)
+create table if not exists public.shop_tire_models (
+  shop_id       uuid not null references public.shops(id) on delete cascade,
+  tire_model_id uuid not null references public.tire_models(id) on delete cascade,
+  created_at    timestamptz not null default now(),
+  primary key (shop_id, tire_model_id)
+);
+create index if not exists shop_tire_models_model_idx on public.shop_tire_models(tire_model_id);
+
+-- รุ่นที่กำหนดให้ร้าน → เปิดสิทธิ์ให้บริษัทลูกค้าทุกรายของร้านอัตโนมัติ (migration 025; security definer เพราะเซลเขียน company_tire_models เองไม่ได้)
+create or replace function public.propagate_shop_tire_model()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  insert into public.company_tire_models (company_id, tire_model_id)
+  select c.id, new.tire_model_id from public.companies c where c.shop_id = new.shop_id
+  on conflict do nothing;
+  return new;
+end $$;
+drop trigger if exists trg_propagate_shop_tire_model on public.shop_tire_models;
+create trigger trg_propagate_shop_tire_model after insert on public.shop_tire_models
+  for each row execute function public.propagate_shop_tire_model();
 
 -- ------------------------------------------------------------
 -- axle_types : ประเภทเพลาและรูปแบบล้อ (super admin CRUD)
@@ -325,7 +383,7 @@ end $$;
 do $$
 declare t text;
 begin
-  foreach t in array array['companies','profiles','axle_types','vehicles','tires'] loop
+  foreach t in array array['shops','companies','profiles','axle_types','vehicles','tires'] loop
     execute format('drop trigger if exists trg_touch_%1$s on public.%1$I', t);
     execute format('create trigger trg_touch_%1$s before update on public.%1$I
                     for each row execute function public.touch_updated_at()', t);
@@ -345,14 +403,50 @@ returns uuid language sql stable security definer set search_path = public as $$
   select company_id from public.profiles where id = auth.uid();
 $$;
 
+-- ทีม Austone (migration 024/025): super_admin / austone_admin / sales
+-- is_super_admin() = super_admin + austone_admin (ใช้กับ policy "เขียน" ทั้งหมด)
 create or replace function public.is_super_admin()
 returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select role in ('super_admin', 'austone_admin') from public.profiles where id = auth.uid()), false);
+$$;
+
+-- เฉพาะ super_admin ตัวจริง (จัดการบัญชีทีม Austone)
+create or replace function public.is_true_super_admin()
+returns boolean language sql stable security definer set search_path = public as $$
   select coalesce((select role = 'super_admin' from public.profiles where id = auth.uid()), false);
+$$;
+
+-- ทีม Austone ทุกคนรวมเซล (ใช้กับ policy "อ่าน" และงานร้านค้า/ดีลเลอร์)
+create or replace function public.is_austone_staff()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select role in ('super_admin', 'austone_admin', 'sales') from public.profiles where id = auth.uid()), false);
 $$;
 
 create or replace function public.is_company_admin()
 returns boolean language sql stable security definer set search_path = public as $$
   select coalesce((select role = 'admin' from public.profiles where id = auth.uid()), false);
+$$;
+
+-- ร้านค้า (migration 021) ---------------------------------------
+create or replace function public.current_shop_id()
+returns uuid language sql stable security definer set search_path = public as $$
+  select shop_id from public.profiles where id = auth.uid();
+$$;
+
+create or replace function public.is_shop_user()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select role = 'shop' from public.profiles where id = auth.uid()), false);
+$$;
+
+-- true เมื่อบริษัทนี้อยู่ภายใต้ร้านค้าของผู้ใช้ปัจจุบัน
+create or replace function public.company_in_my_shop(p_company uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((
+    select c.shop_id is not null
+       and c.shop_id = (select p.shop_id from public.profiles p where p.id = auth.uid())
+    from public.companies c
+    where c.id = p_company
+  ), false);
 $$;
 
 -- แอดมินบริษัทแก้ข้อมูลบริษัทตัวเองได้ แต่ห้ามเปลี่ยนแพ็กเกจเอง (RLS คุมเป็นแถว ไม่คุมคอลัมน์)
@@ -361,7 +455,7 @@ returns trigger language plpgsql security definer set search_path = public as $$
 begin
   if (new.plan is distinct from old.plan or new.plan_expires_at is distinct from old.plan_expires_at)
      and not public.is_super_admin() then
-    raise exception 'เฉพาะผู้ดูแลระบบ (Dreammaker) เท่านั้นที่เปลี่ยนแพ็กเกจได้'
+    raise exception 'เฉพาะผู้ดูแลระบบ (Austone Thailand) เท่านั้นที่เปลี่ยนแพ็กเกจได้'
       using errcode = '42501';
   end if;
   return new;
@@ -566,6 +660,120 @@ end $$;
 comment on function public.apply_tire_ops(uuid, date, jsonb) is
   'บันทึกงานถอด/ใส่ยางหลายรายการของรถคันเดียวในทรานแซกชันเดียว (all-or-nothing)';
 
+-- ------------------------------------------------------------
+-- RPC: ร้านค้าเพิ่มบริษัทลูกค้าภายใต้ร้าน (ตั้งชื่อก่อน บัญชีผู้ใช้สร้างภายหลัง) — migration 021
+-- security definer เพื่อเปิดสิทธิ์เพลาทุกแบบ + รุ่น AUSTONE ให้บริษัทใหม่ (ปกติ super admin เท่านั้นที่เขียนได้)
+-- ------------------------------------------------------------
+create or replace function public.shop_create_company(
+  p_name         text,
+  p_contact_name text default null,
+  p_phone        text default null,
+  p_tax_id       text default null,
+  p_address      text default null
+) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  v_shop    uuid;
+  v_company uuid;
+begin
+  if not public.is_shop_user() then
+    raise exception 'เฉพาะบัญชีร้านค้าเท่านั้นที่เพิ่มบริษัทลูกค้าของร้านได้' using errcode = '42501';
+  end if;
+  v_shop := public.current_shop_id();
+  if v_shop is null then
+    raise exception 'บัญชีนี้ยังไม่ได้ผูกกับร้านค้า' using errcode = '42501';
+  end if;
+  if not exists (select 1 from public.shops where id = v_shop and is_active) then
+    raise exception 'ร้านค้านี้ถูกปิดใช้งานแล้ว' using errcode = '42501';
+  end if;
+  if nullif(btrim(coalesce(p_name, '')), '') is null then
+    raise exception 'กรุณากรอกชื่อบริษัท' using errcode = '22023';
+  end if;
+
+  insert into public.companies (name, contact_name, phone, tax_id, address, shop_id)
+  values (
+    btrim(p_name),
+    nullif(btrim(coalesce(p_contact_name, '')), ''),
+    nullif(btrim(coalesce(p_phone, '')), ''),
+    nullif(btrim(coalesce(p_tax_id, '')), ''),
+    nullif(btrim(coalesce(p_address, '')), ''),
+    v_shop
+  )
+  returning id into v_company;
+
+  -- ร้านไม่รู้ประเภทรถของลูกค้าล่วงหน้า → เปิดเพลาทุกแบบที่ใช้งานอยู่
+  insert into public.company_axle_types (company_id, axle_type_id)
+  select v_company, id from public.axle_types where is_active
+  on conflict do nothing;
+
+  -- ลูกค้าเห็นรุ่นที่ Austone กำหนดให้ร้านนี้ (migration 022)
+  insert into public.company_tire_models (company_id, tire_model_id)
+  select v_company, stm.tire_model_id
+  from public.shop_tire_models stm
+  join public.tire_models m on m.id = stm.tire_model_id
+  where stm.shop_id = v_shop and m.is_active
+  on conflict do nothing;
+
+  return v_company;
+end $$;
+
+-- ------------------------------------------------------------
+-- RPC: หน้า public /p/<token> — ประวัติถอด-ใส่ยางของบริษัทเจ้าของ token (anon, ไม่ต้อง login)
+-- security definer เพราะ anon ไม่มี policy ใดเลย → token เป็นกุญแจเดียว ไม่เปิดเผยชื่อพนักงาน (migration 022)
+-- ------------------------------------------------------------
+create or replace function public.public_company_history(p_token text)
+returns jsonb
+language sql stable security definer set search_path = public as $$
+  with c as (
+    select co.id, co.name, co.code, co.shop_id
+    from public.companies co
+    where length(coalesce(p_token, '')) >= 20
+      and co.public_token = p_token
+      and co.is_active
+  )
+  select case when not exists (select 1 from c) then null else jsonb_build_object(
+    'company', (select jsonb_build_object('name', c.name, 'code', c.code) from c),
+    'shop', (
+      select jsonb_build_object('name', s.name, 'phone', s.phone)
+      from public.shops s join c on c.shop_id = s.id
+    ),
+    'axle_types', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'code', a.code, 'name', a.name, 'axle_kinds', a.axle_kinds
+      ) order by a.sort_order, a.name), '[]'::jsonb)
+      from public.axle_types a
+    ),
+    'vehicles', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'id', v.id, 'plate_no', v.plate_no, 'nickname', v.nickname, 'province', v.province,
+        'axle_type', v.axle_type, 'brand', v.brand, 'model', v.model,
+        'current_mileage', v.current_mileage
+      ) order by v.plate_no nulls last, v.nickname), '[]'::jsonb)
+      from public.vehicles v join c on v.company_id = c.id
+      where v.is_active
+    ),
+    'events', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'id', e.id, 'event_type', e.event_type, 'event_date', e.event_date,
+        'position_code', e.position_code, 'odometer', e.odometer, 'tread_mm', e.tread_mm,
+        'distance_km', e.distance_km, 'note', e.note, 'vehicle_id', e.vehicle_id,
+        'serial_no', t.serial_no, 'brand_name', t.brand_name, 'model_name', t.model_name,
+        'size', t.size, 'reason', r.name
+      ) order by e.event_date desc, e.created_at desc), '[]'::jsonb)
+      from (
+        select ev.* from public.tire_events ev join c on ev.company_id = c.id
+        order by ev.event_date desc, ev.created_at desc
+        limit 1000
+      ) e
+      join public.tires t on t.id = e.tire_id
+      left join public.removal_reasons r on r.id = e.reason_id
+    ),
+    'generated_at', now()
+  ) end
+$$;
+revoke all on function public.public_company_history(text) from public;
+grant execute on function public.public_company_history(text) to anon, authenticated;
+
 -- ============================================================
 -- VIEW : ยางพร้อมระยะวิ่ง + ค่าประมาณ + สถานะแจ้งเตือน
 --
@@ -746,6 +954,7 @@ create index if not exists tire_events_vehicle_unmount_date_idx
 -- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
+alter table public.shops              enable row level security;
 alter table public.companies          enable row level security;
 alter table public.profiles           enable row level security;
 alter table public.vehicles           enable row level security;
@@ -755,14 +964,25 @@ alter table public.tire_events        enable row level security;
 alter table public.tire_brands        enable row level security;
 alter table public.tire_models        enable row level security;
 alter table public.company_tire_models enable row level security;
+alter table public.shop_tire_models    enable row level security;
 alter table public.removal_reasons    enable row level security;
 alter table public.axle_types         enable row level security;
 alter table public.company_axle_types enable row level security;
 
+-- shops (migration 021) --------------------------------------
+drop policy if exists shops_select on public.shops;
+create policy shops_select on public.shops for select to authenticated
+  using (is_austone_staff() or id = current_shop_id());
+-- เซลจัดการร้านค้า/ดีลเลอร์ได้ (migration 025)
+drop policy if exists shops_super_write on public.shops;
+create policy shops_super_write on public.shops for all to authenticated
+  using (is_austone_staff()) with check (is_austone_staff());
+
 -- companies -------------------------------------------------
+-- ร้านค้าเห็นเฉพาะบริษัทภายใต้ร้านตัวเอง (shop_id)
 drop policy if exists companies_select on public.companies;
 create policy companies_select on public.companies for select to authenticated
-  using (is_super_admin() or id = current_company_id());
+  using (is_austone_staff() or id = current_company_id() or shop_id = current_shop_id());
 
 drop policy if exists companies_super_write on public.companies;
 create policy companies_super_write on public.companies for all to authenticated
@@ -774,14 +994,35 @@ create policy companies_admin_update on public.companies for update to authentic
   using (is_company_admin() and id = current_company_id())
   with check (is_company_admin() and id = current_company_id());
 
+-- ร้านค้าแก้ข้อมูลติดต่อของบริษัทภายใต้ร้านได้ แต่ย้ายไปร้านอื่นไม่ได้ (with check ล็อก shop_id) — migration 021
+drop policy if exists companies_shop_update on public.companies;
+create policy companies_shop_update on public.companies for update to authenticated
+  using (is_shop_user() and shop_id = current_shop_id())
+  with check (is_shop_user() and shop_id = current_shop_id());
+
 -- profiles --------------------------------------------------
 drop policy if exists profiles_select on public.profiles;
 create policy profiles_select on public.profiles for select to authenticated
-  using (is_super_admin() or id = auth.uid() or company_id = current_company_id());
+  using (
+    is_austone_staff()
+    or id = auth.uid()
+    or company_id = current_company_id()
+    -- ร้านค้าเห็นเพื่อนร่วมร้านและบัญชีของบริษัทภายใต้ร้าน (migration 021)
+    or (shop_id is not null and shop_id = current_shop_id())
+    or company_in_my_shop(company_id)
+  );
 
+-- austone_admin จัดการได้เฉพาะบัญชีของลูกค้า/ร้าน · บัญชีทีม Austone เป็นของ super_admin เท่านั้น (migration 025)
 drop policy if exists profiles_super_write on public.profiles;
 create policy profiles_super_write on public.profiles for all to authenticated
-  using (is_super_admin()) with check (is_super_admin());
+  using (
+    is_true_super_admin()
+    or (is_super_admin() and role in ('admin', 'technician', 'shop'))
+  )
+  with check (
+    is_true_super_admin()
+    or (is_super_admin() and role in ('admin', 'technician', 'shop'))
+  );
 
 -- admin จัดการช่างในบริษัทตัวเอง (ห้ามสร้าง super_admin)
 drop policy if exists profiles_admin_write on public.profiles;
@@ -790,6 +1031,7 @@ create policy profiles_admin_write on public.profiles for all to authenticated
   with check (is_company_admin() and company_id = current_company_id() and role <> 'super_admin');
 
 -- vehicles / tires / tire_events / tire_imports : tenant isolation
+-- ร้านค้าเข้าถึงได้เฉพาะแถวของบริษัทภายใต้ร้าน (company_in_my_shop) — ข้อมูลยังแยกตาม company_id เหมือนเดิม
 do $$
 declare tbl text;
 begin
@@ -797,13 +1039,13 @@ begin
     execute format('drop policy if exists %1$s_tenant_select on public.%1$I', tbl);
     execute format($f$create policy %1$s_tenant_select on public.%1$I
       for select to authenticated
-      using (is_super_admin() or company_id = current_company_id())$f$, tbl);
+      using (is_austone_staff() or company_id = current_company_id() or company_in_my_shop(company_id))$f$, tbl);
 
     execute format('drop policy if exists %1$s_tenant_write on public.%1$I', tbl);
     execute format($f$create policy %1$s_tenant_write on public.%1$I
       for all to authenticated
-      using (is_super_admin() or company_id = current_company_id())
-      with check (is_super_admin() or company_id = current_company_id())$f$, tbl);
+      using (is_super_admin() or company_id = current_company_id() or company_in_my_shop(company_id))
+      with check (is_super_admin() or company_id = current_company_id() or company_in_my_shop(company_id))$f$, tbl);
   end loop;
 end $$;
 
@@ -818,7 +1060,9 @@ create policy reasons_write on public.removal_reasons for all to authenticated
 drop policy if exists axle_types_select on public.axle_types;
 create policy axle_types_select on public.axle_types for select to authenticated
   using (
-    is_super_admin()
+    is_austone_staff()
+    -- ร้านค้าไม่รู้ประเภทรถของลูกค้าล่วงหน้า จึงใช้เพลาทุกแบบได้ (migration 021)
+    or is_shop_user()
     or exists (
       select 1 from public.company_axle_types ca
       where ca.axle_type_id = axle_types.id
@@ -838,10 +1082,18 @@ create policy axle_types_write on public.axle_types for all to authenticated
 -- company_axle_types -----------------------------------------
 drop policy if exists cat_select on public.company_axle_types;
 create policy cat_select on public.company_axle_types for select to authenticated
-  using (is_super_admin() or company_id = current_company_id());
+  using (is_austone_staff() or company_id = current_company_id() or company_in_my_shop(company_id));
 drop policy if exists cat_super_write on public.company_axle_types;
 create policy cat_super_write on public.company_axle_types for all to authenticated
   using (is_super_admin()) with check (is_super_admin());
+
+-- shop_tire_models (migration 022) : ร้านอ่านรุ่นที่ตัวเองได้รับ, Austone เท่านั้นที่กำหนด
+drop policy if exists stm_select on public.shop_tire_models;
+create policy stm_select on public.shop_tire_models for select to authenticated
+  using (is_austone_staff() or shop_id = current_shop_id());
+drop policy if exists stm_super_write on public.shop_tire_models;
+create policy stm_super_write on public.shop_tire_models for all to authenticated
+  using (is_austone_staff()) with check (is_austone_staff());
 
 -- tire_brands ------------------------------------------------
 drop policy if exists brands_select on public.tire_brands;
@@ -863,7 +1115,9 @@ create policy brands_tenant_update on public.tire_brands for update to authentic
 drop policy if exists models_select on public.tire_models;
 create policy models_select on public.tire_models for select to authenticated
   using (
-    is_super_admin()
+    is_austone_staff()
+    -- ร้านค้าอ่านแคตตาล็อกกลางทั้งหมด (แอปจำกัดการใส่ยางไว้ที่ AUSTONE) — migration 021
+    or (is_shop_user() and created_by_company is null)
     or created_by_company = current_company_id()
     or exists (
       select 1 from public.company_tire_models m
@@ -886,7 +1140,7 @@ create policy models_tenant_update on public.tire_models for update to authentic
 -- company_tire_models ---------------------------------------
 drop policy if exists ctm_select on public.company_tire_models;
 create policy ctm_select on public.company_tire_models for select to authenticated
-  using (is_super_admin() or company_id = current_company_id());
+  using (is_austone_staff() or company_id = current_company_id() or company_in_my_shop(company_id));
 drop policy if exists ctm_super_write on public.company_tire_models;
 create policy ctm_super_write on public.company_tire_models for all to authenticated
   using (is_super_admin()) with check (is_super_admin());

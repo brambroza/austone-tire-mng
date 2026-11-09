@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/lib/database.types'
 
 /** path ที่เข้าได้โดยไม่ต้อง login */
-const PUBLIC_PATHS = ['/login', '/auth', '/api/health']
+const PUBLIC_PATHS = ['/login', '/auth', '/api/health', '/p/']
 
 /**
  * Refresh session + กันเส้นทางที่ต้อง login

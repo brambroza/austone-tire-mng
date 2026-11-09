@@ -12,11 +12,11 @@ export interface TirePerformanceExportInput {
   rows: TirePerformanceRow[]
 }
 
-const BRAND = '#0D6EE0'
-const BRAND_LIGHT = '#F0F8FF'
-const INK = '#0F1C2E'
-const MUTED = '#5B7089'
-const LINE = '#E3EDF9'
+const BRAND = '#1A1A1A'
+const BRAND_LIGHT = '#FEFCE6'
+const INK = '#1A1A1A'
+const MUTED = '#7A7878'
+const LINE = '#E8E8E4'
 const EMERALD = '#047857'
 const EMERALD_LIGHT = '#ECFDF5'
 const ROSE = '#BE123C'
@@ -254,7 +254,7 @@ function createPdfPage(pageNumber: number, pageCount: number) {
     'box-sizing:border-box',
     'padding:34px 40px 26px',
     'background:#ffffff',
-    'color:#0f1c2e',
+    'color:#1a1a1a',
     `font-family:${getComputedStyle(document.body).fontFamily}`,
   ].join(';')
   page.dataset.pageNumber = `${pageNumber} / ${pageCount}`
@@ -265,15 +265,15 @@ function createPdfPage(pageNumber: number, pageCount: number) {
 const basePdfStyles = `
   * { box-sizing:border-box; }
   .heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
-  h1 { margin:0; color:#0f1c2e; font-size:24px; line-height:1.3; }
-  h2 { margin:0; color:#0f1c2e; font-size:14px; }
-  .meta { margin:6px 0 0; color:#5b7089; font-size:12px; }
-  .page-no { color:#8397ad; font-size:11px; white-space:nowrap; }
-  .footer { position:absolute; right:40px; bottom:18px; color:#8397ad; font-size:9px; }
+  h1 { margin:0; color:#1a1a1a; font-size:24px; line-height:1.3; }
+  h2 { margin:0; color:#1a1a1a; font-size:14px; }
+  .meta { margin:6px 0 0; color:#7a7878; font-size:12px; }
+  .page-no { color:#a0a09f; font-size:11px; white-space:nowrap; }
+  .footer { position:absolute; right:40px; bottom:18px; color:#a0a09f; font-size:9px; }
   table { width:100%; border-collapse:collapse; table-layout:fixed; }
-  th { padding:8px 7px; background:#0d6ee0; color:#fff; font-size:10px; text-align:left; }
-  td { padding:7px; border-bottom:1px solid #e3edf9; color:#2c405b; font-size:10px; vertical-align:top; word-break:break-word; }
-  tbody tr:nth-child(even) { background:#f7fbff; }
+  th { padding:8px 7px; background:#1a1a1a; color:#fff; font-size:10px; text-align:left; }
+  td { padding:7px; border-bottom:1px solid #e8e8e4; color:#454444; font-size:10px; vertical-align:top; word-break:break-word; }
+  tbody tr:nth-child(even) { background:#fbfbf8; }
   .number { text-align:right; }
 `
 
@@ -308,30 +308,30 @@ function buildSummaryPdfPage(
   page.innerHTML = `
     <style>
       ${basePdfStyles}
-      .metrics { display:grid; grid-template-columns:repeat(4,1fr); margin-top:18px; border:1px solid #e3edf9; border-radius:12px; overflow:hidden; }
-      .metric { padding:12px 14px; border-right:1px solid #e3edf9; }
+      .metrics { display:grid; grid-template-columns:repeat(4,1fr); margin-top:18px; border:1px solid #e8e8e4; border-radius:12px; overflow:hidden; }
+      .metric { padding:12px 14px; border-right:1px solid #e8e8e4; }
       .metric:last-child { border-right:0; }
-      .metric span { display:block; color:#5b7089; font-size:10px; }
-      .metric strong { display:block; margin-top:4px; color:#0f1c2e; font-size:18px; }
+      .metric span { display:block; color:#7a7878; font-size:10px; }
+      .metric strong { display:block; margin-top:4px; color:#1a1a1a; font-size:18px; }
       .insights { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:13px; }
       .insight { padding:13px 15px; border:1px solid; border-radius:11px; }
       .insight h2 { margin-bottom:7px; }
-      .insight p { margin:3px 0; color:#2c405b; font-size:10px; }
+      .insight p { margin:3px 0; color:#454444; font-size:10px; }
       .insight strong { font-size:19px; }
       .long { border-color:#a7f3d0; background:#ecfdf5; }
       .long h2,.long strong { color:#047857; }
       .short { border-color:#fecdd3; background:#fff1f2; }
       .short h2,.short strong { color:#be123c; }
       .analysis { display:grid; grid-template-columns:0.75fr 1.35fr; gap:14px; margin-top:14px; }
-      .panel { padding:13px; border:1px solid #e3edf9; border-radius:11px; overflow:hidden; }
+      .panel { padding:13px; border:1px solid #e8e8e4; border-radius:11px; overflow:hidden; }
       .panel-title { margin-bottom:10px; }
       .reason-row { margin-top:8px; }
-      .reason-line { display:flex; justify-content:space-between; gap:10px; color:#2c405b; font-size:9px; }
-      .bar { height:5px; margin-top:4px; overflow:hidden; border-radius:99px; background:#f0f8ff; }
-      .bar i { display:block; height:100%; border-radius:99px; background:#1f8cf5; }
-      .reason-row small { display:block; margin-top:3px; color:#8397ad; font-size:8px; }
+      .reason-line { display:flex; justify-content:space-between; gap:10px; color:#454444; font-size:9px; }
+      .bar { height:5px; margin-top:4px; overflow:hidden; border-radius:99px; background:#fefce6; }
+      .bar i { display:block; height:100%; border-radius:99px; background:#f5e907; }
+      .reason-row small { display:block; margin-top:3px; color:#a0a09f; font-size:8px; }
       .models th,.models td { padding:6px 5px; font-size:8.5px; }
-      .tire-detail { color:#5b7089; font-size:8px; }
+      .tire-detail { color:#7a7878; font-size:8px; }
     </style>
     <div class="heading">
       <div><h1>รายงานประสิทธิภาพยางและสาเหตุการเปลี่ยน</h1><p class="meta">${escapeHtml(input.filterLabel)} · ${escapeHtml(formatThaiDate(new Date(), true))}</p></div>
@@ -360,7 +360,7 @@ function buildSummaryPdfPage(
         <table class="models"><thead><tr><th>#</th><th>ขนาด / ยี่ห้อ รุ่น</th><th>เฉลี่ย</th><th>สูงสุด</th><th>ต่ำสุด</th><th>รอบ</th><th>สาเหตุหลัก</th></tr></thead><tbody>${modelHtml || '<tr><td colspan="7">ยังไม่มีข้อมูล</td></tr>'}</tbody></table>
       </section>
     </div>
-    <div class="footer">Dream Tire Management · ระยะทางเป็นค่าต่อหนึ่งรอบติดตั้ง-ถอด</div>
+    <div class="footer">Austone Tire Management · ระยะทางเป็นค่าต่อหนึ่งรอบติดตั้ง-ถอด</div>
   `
   return page
 }
@@ -406,7 +406,7 @@ function buildDetailPdfPage(
       <thead><tr><th>วันที่</th><th>บริษัท</th><th>เลขยาง</th><th>ขนาด / ยี่ห้อ รุ่น</th><th>ระยะรอบนี้</th><th>ดอกยาง</th><th>สาเหตุ</th><th>หมายเหตุ</th></tr></thead>
       <tbody>${rowHtml}</tbody>
     </table>
-    <div class="footer">Dream Tire Management · ${formatNumber(input.rows.length)} รายการ</div>
+    <div class="footer">Austone Tire Management · ${formatNumber(input.rows.length)} รายการ</div>
   `
   return page
 }

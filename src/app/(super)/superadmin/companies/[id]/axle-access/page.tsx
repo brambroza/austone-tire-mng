@@ -1,9 +1,10 @@
 import { requireSession } from '@/lib/auth'
+import { AUSTONE_ROLES, canEditCentral } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { AxleAccessClient, type AccessAxleType } from '../axle-access-client'
 import type { AxleType } from '@/lib/database.types'
 
-export const metadata = { title: 'สิทธิ์ประเภทเพลา · Dream Tire Admin' }
+export const metadata = { title: 'สิทธิ์ประเภทเพลา · Austone Tire Admin' }
 
 /** แท็บกำหนดว่าลูกค้ารายนี้เลือกใช้ประเภทเพลาแบบใดได้บ้าง */
 export default async function CompanyAxleAccessPage({
@@ -11,7 +12,7 @@ export default async function CompanyAxleAccessPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  await requireSession(['super_admin'])
+  const { profile } = await requireSession(AUSTONE_ROLES)
   const { id } = await params
   const supabase = await createClient()
 
@@ -42,6 +43,7 @@ export default async function CompanyAxleAccessPage({
 
   return (
     <AxleAccessClient
+      readOnly={!canEditCentral(profile.role)}
       companyId={id}
       axleTypes={axleTypes}
       allowed={(accessData ?? []).map((row) => row.axle_type_id)}

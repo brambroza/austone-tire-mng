@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/app-shell'
 import { Card, EmptyState } from '@/components/ui'
 import { ScanSerialClient, type ScanModelOption } from './scan-client'
 
-export const metadata = { title: 'เพิ่มซีรีย์ยางใหม่ · Dream Tire' }
+export const metadata = { title: 'เพิ่มซีรีย์ยางใหม่ · Austone Tire' }
 
 interface GrantRow {
   tire_models: {

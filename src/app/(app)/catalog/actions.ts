@@ -107,7 +107,7 @@ export async function createOwnModel(input: OwnModelInput): Promise<ActionResult
   if (error) {
     // unique (brand_id, name, size) ชน = รุ่นนี้มีในแคตตาล็อกกลางแล้วแต่บริษัทยังไม่ได้รับสิทธิ์ (RLS เลยมองไม่เห็น)
     if ((error as { code?: string }).code === '23505') {
-      return { ok: false, error: 'รุ่นนี้มีในแคตตาล็อกกลางแล้ว — แจ้ง Dreammaker เปิดสิทธิ์ให้บริษัท' }
+      return { ok: false, error: 'รุ่นนี้มีในแคตตาล็อกกลางแล้ว — แจ้ง Austone Thailand เปิดสิทธิ์ให้บริษัท' }
     }
     return fail(error)
   }

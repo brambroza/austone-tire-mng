@@ -3,7 +3,7 @@ import { requireSession } from '@/lib/auth'
 import { PageHeader } from '@/components/app-shell'
 import { CompanyForm } from './company-form'
 
-export const metadata = { title: 'ข้อมูลบริษัท · Dream Tire' }
+export const metadata = { title: 'ข้อมูลบริษัท · Austone Tire' }
 
 export default async function CompanyPage() {
   const { company } = await requireSession(['admin'])
