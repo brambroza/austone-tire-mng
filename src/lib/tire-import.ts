@@ -22,8 +22,8 @@ export interface TireImportRow {
 /** คีย์ของคอลัมน์ข้อมูล (ไม่รวม rowNo) */
 export type TireImportColumnKey = Exclude<keyof TireImportRow, 'rowNo'>
 
-/** ชื่อยี่ห้อกลางสำหรับยางที่ไม่ระบุยี่ห้อ (สร้างโดย migration 010) */
-export const OTHER_BRAND = 'อื่นๆ'
+export { OTHER_BRAND, isOtherBrand } from '@/lib/other-brand'
+import { OTHER_BRAND, isOtherBrand } from '@/lib/other-brand'
 
 /** นำเข้าได้ครั้งละไม่เกินกี่แถว */
 export const MAX_IMPORT_ROWS = 2000
@@ -206,13 +206,6 @@ export function parseImportMatrix(cells: unknown[][]): ParseMatrixResult {
   return { ok: true, rows }
 }
 
-/**
- * ยี่ห้อนี้คือ "อื่นๆ" หรือไม่ (ตัดช่องว่างทั้งหมดก่อนเทียบ เช่น "อื่น ๆ")
- * @param brand ชื่อยี่ห้อ
- */
-export function isOtherBrand(brand: string | null | undefined): boolean {
-  return (brand ?? '').replace(/\s+/g, '') === OTHER_BRAND
-}
 
 /**
  * แปลงซีรีย์เป็นรูปแบบมาตรฐานสำหรับเทียบ/บันทึก (ตัวพิมพ์ใหญ่ ตัดช่องว่างหัวท้าย)

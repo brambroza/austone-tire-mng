@@ -10,7 +10,7 @@ interface ModelRow {
   name: string
   size: string | null
   pattern_code: string | null
-  tire_brands: { name: string } | null
+  tire_brands: { name: string; is_active: boolean } | null
 }
 
 /** แท็บกำหนดว่าลูกค้ารายนี้เห็นยางรุ่นใดในแคตตาล็อกกลางได้บ้าง */
@@ -26,14 +26,17 @@ export default async function CompanyAccessPage({
   const [{ data: modelData }, { data: accessData }] = await Promise.all([
     supabase
       .from('tire_models')
-      .select('id, name, size, pattern_code, tire_brands(name)')
+      .select('id, name, size, pattern_code, tire_brands(name, is_active)')
       .is('created_by_company', null)
       .eq('is_active', true)
       .order('name'),
     supabase.from('company_tire_models').select('tire_model_id').eq('company_id', id),
   ])
 
-  const models: AccessModel[] = ((modelData ?? []) as unknown as ModelRow[]).map((m) => ({
+  // รุ่นของยี่ห้อที่ปิดใช้งานไม่ให้ติ๊ก — หน้าบันทึกถอด-ใส่ซ่อนรุ่นเหล่านั้นอยู่แล้ว
+  const models: AccessModel[] = ((modelData ?? []) as unknown as ModelRow[])
+    .filter((m) => m.tire_brands?.is_active !== false)
+    .map((m) => ({
     id: m.id,
     brand: m.tire_brands?.name ?? 'ไม่ระบุยี่ห้อ',
     model: m.name,

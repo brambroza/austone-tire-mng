@@ -2,7 +2,6 @@
 
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { SHOP_MOUNT_BRAND_MESSAGE, isShopMountBrand } from '@/lib/shop-rules'
 import { requireSession } from '@/lib/auth'
 import { AUSTONE_WRITE_ROLES, DEALER_MANAGER_ROLES } from '@/lib/roles'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
@@ -734,7 +733,7 @@ const shopTireModelsSchema = z.object({
 
 /**
  * Austone กำหนดว่าร้านนี้ใส่ยางรุ่นใดให้ลูกค้าได้บ้าง (แทนที่รายการเดิมทั้งหมด)
- * - รับเฉพาะรุ่นกลางยี่ห้อ AUSTONE ที่ยังเปิดใช้งาน
+ * - รับรุ่นกลางทุกยี่ห้อที่ยังเปิดใช้งาน (เดิมจำกัด AUSTONE — ปลดล็อกแล้ว ให้ Austone เลือกยี่ห้ออื่นให้ร้านได้)
  * - รุ่นที่เพิ่มจะถูกเปิดสิทธิ์ให้ลูกค้าทุกรายภายใต้ร้านด้วย (บริษัทจะได้เห็นรุ่นที่ร้านใส่ให้)
  *   ส่วนรุ่นที่ถอดออกจากร้านจะไม่ถอนจากบริษัท เพราะอาจมียางรุ่นนั้นติดรถอยู่แล้ว
  * @param shopId รหัสร้านค้า
@@ -750,19 +749,16 @@ export async function setShopTireModels(shopId: string, modelIds: string[]): Pro
   if (unique.length > 0) {
     const { data: models, error: modelError } = await supabase
       .from('tire_models')
-      .select('id, is_active, created_by_company, tire_brands(name)')
+      .select('id, is_active, created_by_company')
       .in('id', unique)
     if (modelError) return fail(modelError)
-    const rows = (models ?? []) as unknown as Array<{
-      id: string; is_active: boolean; created_by_company: string | null; tire_brands: { name: string } | null
-    }>
+    const rows = (models ?? []) as unknown as Array<{ id: string; is_active: boolean; created_by_company: string | null }>
     const byId = new Map(rows.map((m) => [m.id, m]))
     for (const id of unique) {
       const m = byId.get(id)
       if (!m || !m.is_active || m.created_by_company !== null) {
         return { ok: false, error: 'มีรุ่นยางที่ไม่อยู่ในแคตตาล็อกกลางหรือถูกปิดใช้งานแล้ว' }
       }
-      if (!isShopMountBrand(m.tire_brands?.name)) return { ok: false, error: SHOP_MOUNT_BRAND_MESSAGE }
     }
   }
 

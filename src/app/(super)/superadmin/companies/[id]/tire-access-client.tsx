@@ -1,11 +1,13 @@
 'use client'
 
 import * as React from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Check } from 'lucide-react'
 import { Button, Card, CardBody, CardHeader } from '@/components/ui'
 import { TireSpec } from '@/components/tire-spec'
 import { cn } from '@/lib/utils'
+import { isOtherBrand } from '@/lib/tire-import'
 import { setCompanyTireModels } from '../../actions'
 import type { ActionResult } from '@/lib/action-result'
 
@@ -30,6 +32,7 @@ export function TireAccessClient({
   description = 'ติ๊กรุ่นที่จะให้บริษัทนี้เลือกใช้',
   emptyText = 'ยังไม่มีรุ่นยางในแคตตาล็อกกลาง — เพิ่มได้ที่เมนู “ข้อมูลยาง”',
   readOnly = false,
+  allBrands,
 }: {
   companyId: string
   models: AccessModel[]
@@ -41,6 +44,8 @@ export function TireAccessClient({
   emptyText?: string
   /** true = ดูอย่างเดียว (เซล) — ติ๊กไม่ได้ ไม่มีปุ่มบันทึก */
   readOnly?: boolean
+  /** ยี่ห้อทั้งหมดในแคตตาล็อกกลาง — ยี่ห้อที่ยังไม่มีรุ่นจะแสดงเป็นกลุ่มว่างพร้อมลิงก์ไปเพิ่มรุ่น */
+  allBrands?: string[]
 }) {
   const router = useRouter()
   const [selected, setSelected] = React.useState<Set<string>>(new Set(allowed))
@@ -50,13 +55,15 @@ export function TireAccessClient({
 
   const grouped = React.useMemo(() => {
     const map = new Map<string, AccessModel[]>()
+    for (const b of allBrands ?? []) map.set(b, [])
     for (const m of models) {
       const list = map.get(m.brand) ?? []
       list.push(m)
       map.set(m.brand, list)
     }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b))
-  }, [models])
+    // ยี่ห้อ "อื่นๆ" ไว้ท้ายสุดเสมอ ที่เหลือเรียงตามชื่อ
+    return [...map.entries()].sort(([a], [b]) => Number(isOtherBrand(a)) - Number(isOtherBrand(b)) || a.localeCompare(b))
+  }, [models, allBrands])
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -129,14 +136,25 @@ export function TireAccessClient({
               <div key={brand}>
                 <div className="mb-2.5 flex items-center justify-between">
                   <p className="text-sm font-semibold text-ink-900">{brand}</p>
-                  <button
-                    type="button"
-                    onClick={() => toggleBrand(brand)}
-                    className="text-sm text-brand-600 hover:underline"
-                  >
-                    {allSelected ? 'ยกเลิกทั้งยี่ห้อ' : 'เลือกทั้งยี่ห้อ'}
-                  </button>
+                  {list.length === 0 ? (
+                    <Link href="/superadmin/catalog" className="text-sm text-brand-600 hover:underline">
+                      ยังไม่มีรุ่น — เพิ่มที่ข้อมูลยาง
+                    </Link>
+                  ) : !readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => toggleBrand(brand)}
+                      className="text-sm text-brand-600 hover:underline"
+                    >
+                      {allSelected ? 'ยกเลิกทั้งยี่ห้อ' : 'เลือกทั้งยี่ห้อ'}
+                    </button>
+                  )}
                 </div>
+                {list.length === 0 && (
+                  <p className="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-ink-400">
+                    ยี่ห้อนี้ยังไม่มีรุ่นในแคตตาล็อกกลาง จึงยังกำหนดให้ร้านไม่ได้
+                  </p>
+                )}
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {list.map((m) => {
                     const active = selected.has(m.id)

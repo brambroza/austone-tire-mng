@@ -40,6 +40,16 @@ join (values
 ) as m(brand, name, size, pattern, new_tread_mm) on m.brand = b.name
 on conflict (brand_id, name, size) do nothing;
 
+-- ยี่ห้อ "อื่นๆ" = ยางที่ไม่ระบุยี่ห้อในแคตตาล็อก (ดู migration 010) — มี 1 รุ่นต่อขนาด
+-- Austone กำหนดให้ร้าน/ลูกค้าใช้ได้เหมือนรุ่นทั่วไป ตอนใส่ยางต้องกรอกหมายเหตุว่ายี่ห้อ/รุ่นจริงคืออะไร
+insert into public.tire_brands (name) values ('อื่นๆ') on conflict (name) do nothing;
+insert into public.tire_models (brand_id, name, size, new_tread_mm)
+select b.id, 'อื่นๆ', s.size, null
+from public.tire_brands b
+cross join (values ('11R22.5'), ('295/80R22.5'), ('12R22.5'), ('315/80R22.5'), ('10.00R20'), ('11.00R20')) as s(size)
+where b.name = 'อื่นๆ'
+on conflict (brand_id, name, size) do nothing;
+
 -- ------------------------------------------------------------
 -- ตัวอย่าง tenant + ผู้ใช้
 -- ------------------------------------------------------------
