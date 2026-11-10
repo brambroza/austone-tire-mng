@@ -2,9 +2,11 @@
 
 import * as React from 'react'
 import { AlertCircle, ArrowDownUp, Building2, CalendarRange, Truck } from 'lucide-react'
-import { Badge, Button, Card, EmptyState, Select, StatTile, Table, TableWrap, Td, Th } from '@/components/ui'
+import { Button, Card, EmptyState, Select, StatTile, Table, TableWrap, Td, Th } from '@/components/ui'
 import { ExcelLogo } from '@/components/export-buttons'
 import { Pagination, usePagination } from '@/components/ui/pagination'
+import { ChangeSideCell, ChangeSideHeaders, type ChangeSideInfo } from '@/components/tire-event-table'
+import { pairTireChanges, primaryEvent } from '@/lib/tire-change-rows'
 import { tireBrandModelLabel } from '@/lib/tire-display'
 import { formatKm, formatNumber, formatThaiDate } from '@/lib/utils'
 import { dateRangeLabel } from '@/app/(app)/dashboard/removal-report-types'
@@ -12,6 +14,20 @@ import { exportShopReportExcel } from './shop-report-export'
 import {
   summarizeShopRows, type ShopReportCompanyOption, type ShopReportEventType, type ShopReportFilters, type ShopReportRow,
 } from './shop-report-types'
+
+/** แปลงแถวรายงานเป็นข้อมูลฝั่งสำหรับ ChangeSideCell */
+function reportSide(row: ShopReportRow | null): ChangeSideInfo | null {
+  if (!row) return null
+  return {
+    serialNo: row.serialNo,
+    brandModel: tireBrandModelLabel(row.brandName, row.modelName),
+    size: row.size,
+    treadMm: row.treadMm,
+    distanceKm: row.eventType === 'unmount' ? row.distanceKm : null,
+    reason: row.reasonName,
+    note: row.note,
+  }
+}
 
 const EVENT_TYPE_LABEL: Record<ShopReportEventType, string> = {
   all: 'ถอดและใส่',
@@ -43,7 +59,15 @@ export function ShopReportClient({
     [rows, eventType],
   )
   const summary = React.useMemo(() => summarizeShopRows(filteredRows), [filteredRows])
-  const pagination = usePagination(filteredRows, 20)
+  // ตารางบนจอรวมถอด+ใส่ของงานเดียวกันเป็นแถวเดียว (ไฟล์ Excel ยังแยก 1 แถวต่อ 1 รายการ)
+  const changeRows = React.useMemo(
+    () => pairTireChanges(
+      filteredRows.map((row) => ({ id: row.id, event_type: row.eventType, event_date: row.eventDate, position_code: row.positionCode, row })),
+      (e) => e.row.vehicleId,
+    ),
+    [filteredRows],
+  )
+  const pagination = usePagination(changeRows, 20)
 
   const companyName = companies.find((c) => c.id === filters.companyId)?.name ?? 'ทุกราย'
   const filterLabel = [companyName, EVENT_TYPE_LABEL[eventType], dateRangeLabel(filters, formatThaiDate)].join(' · ')
@@ -102,57 +126,38 @@ export function ShopReportClient({
           <EmptyState title="ไม่มีรายการตามตัวกรอง" description="ลองขยายช่วงวันที่ หรือเลือกทุกราย" />
         ) : (
           <TableWrap>
-            <Table className="min-w-[1100px]">
+            <Table className="min-w-[1000px]">
               <thead>
                 <tr>
                   <Th>วันที่</Th>
                   <Th>ลูกค้า</Th>
-                  <Th>รายการ</Th>
                   <Th>รถ · ตำแหน่ง</Th>
-                  <Th>ซีรีย์</Th>
-                  <Th>ยี่ห้อ / รุ่น · ขนาด</Th>
+                  <ChangeSideHeaders />
                   <Th className="text-right">เลขไมล์</Th>
-                  <Th className="text-right">ระยะรอบนี้</Th>
-                  <Th className="text-right">ดอกยาง</Th>
-                  <Th>สาเหตุ / หมายเหตุ</Th>
                   <Th>ผู้บันทึก</Th>
                 </tr>
               </thead>
               <tbody>
-                {pagination.pageItems.map((row) => (
-                  <tr key={row.id} className="hover:bg-brand-50/40">
-                    <Td className="whitespace-nowrap">{formatThaiDate(row.eventDate)}</Td>
-                    <Td className="font-medium text-ink-900">{row.companyName}</Td>
-                    <Td>
-                      <Badge tone={row.eventType === 'mount' ? 'brand' : 'amber'}>
-                        {row.eventType === 'mount' ? 'ใส่ยาง' : 'ถอดยาง'}
-                      </Badge>
-                    </Td>
-                    <Td>
-                      <span className="font-medium text-ink-900">{row.vehicleLabel}</span>
-                      <p className="text-xs text-ink-500">{row.positionLabel}</p>
-                    </Td>
-                    <Td className="font-mono uppercase">
-                      {row.serialNo}
-                      {row.unknownSerial && <Badge tone="slate" className="ml-1.5">ไม่ทราบซีรีย์</Badge>}
-                    </Td>
-                    <Td>
-                      {tireBrandModelLabel(row.brandName, row.modelName)}
-                      {row.size && <p className="text-xs text-ink-500">{row.size}</p>}
-                    </Td>
-                    <Td className="text-right">{formatKm(row.odometer)}</Td>
-                    <Td className="text-right">{row.distanceKm === null ? '-' : formatKm(row.distanceKm)}</Td>
-                    <Td className="text-right">{row.treadMm === null ? '-' : `${row.treadMm} มม.`}</Td>
-                    <Td>
-                      <span>{row.reasonName ?? (row.eventType === 'unmount' ? '-' : '')}</span>
-                      {row.note && <p className="max-w-64 whitespace-normal text-xs text-ink-500">{row.note}</p>}
-                    </Td>
-                    <Td>{row.recordedBy ?? '-'}</Td>
-                  </tr>
-                ))}
+                {pagination.pageItems.map((item) => {
+                  const main = primaryEvent(item).row
+                  return (
+                    <tr key={item.key} className="hover:bg-brand-50/40">
+                      <Td className="whitespace-nowrap">{formatThaiDate(item.event_date)}</Td>
+                      <Td className="font-medium text-ink-900">{main.companyName}</Td>
+                      <Td>
+                        <span className="font-medium text-ink-900">{main.vehicleLabel}</span>
+                        <p className="text-xs text-ink-500">{main.positionLabel}</p>
+                      </Td>
+                      <Td><ChangeSideCell side={reportSide(item.unmount?.row ?? null)} emptyText="ใส่ลงตำแหน่งว่าง" /></Td>
+                      <Td><ChangeSideCell side={reportSide(item.mount?.row ?? null)} emptyText="ถอดเก็บ ไม่ใส่แทน" /></Td>
+                      <Td className="text-right">{formatKm(main.odometer)}</Td>
+                      <Td>{main.recordedBy ?? '-'}</Td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </Table>
-            <Pagination state={pagination} itemLabel="รายการ" />
+            <Pagination state={pagination} itemLabel="งาน" />
           </TableWrap>
         )}
       </Card>

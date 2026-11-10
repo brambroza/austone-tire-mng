@@ -2,6 +2,8 @@
  * Query และ type ที่หน้าฝั่งร้านค้าใช้ร่วมกัน (server only)
  */
 
+import type { ChangeSideInfo } from '@/components/tire-event-table'
+import { tireBrandModelLabel } from '@/lib/tire-display'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Company, Database } from '@/lib/database.types'
 
@@ -92,6 +94,23 @@ export interface ShopEventRecord {
   vehicles: { id: string; nickname: string | null; plate_no: string | null; province: string | null; axle_type: string } | null
   removal_reasons: { name: string } | null
   profiles: { full_name: string } | null
+}
+
+/**
+ * แปลง event ของร้านเป็นข้อมูลฝั่ง "ถอดออก/ใส่เข้า" สำหรับ ChangeSideCell
+ * @param e event (null = งานนี้ไม่มีฝั่งนี้)
+ */
+export function shopEventSide(e: ShopEventRecord | null): ChangeSideInfo | null {
+  if (!e) return null
+  return {
+    serialNo: e.tires?.serial_no,
+    brandModel: tireBrandModelLabel(e.tires?.brand_name, e.tires?.model_name),
+    size: e.tires?.size,
+    treadMm: e.tread_mm,
+    distanceKm: e.event_type === 'unmount' ? e.distance_km : null,
+    reason: e.removal_reasons?.name,
+    note: e.note,
+  }
 }
 
 export const SHOP_EVENT_SELECT =

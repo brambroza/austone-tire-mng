@@ -50,8 +50,8 @@ export default async function CompanyOverviewPage({
     supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('company_id', id),
     supabase
       .from('tire_events')
-      .select('id, event_type, event_date, position_code, distance_km, ' +
-        'tires(serial_no), vehicles(nickname, plate_no, axle_type), removal_reasons(name), profiles(full_name)')
+      .select('id, event_type, event_date, position_code, odometer, tread_mm, distance_km, note, ' +
+        'tires(serial_no, brand_name, model_name), vehicles(id, nickname, plate_no, axle_type), removal_reasons(name), profiles(full_name)')
       .eq('company_id', id)
       .order('event_date', { ascending: false })
       .order('created_at', { ascending: false })

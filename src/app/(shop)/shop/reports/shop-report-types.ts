@@ -8,6 +8,10 @@ export interface ShopReportRow {
   companyName: string
   eventType: 'mount' | 'unmount'
   eventDate: string
+  /** id รถ (null = รถถูกลบ) — ใช้จับคู่ถอด/ใส่เป็นแถวเดียว */
+  vehicleId: string | null
+  /** รหัสตำแหน่งล้อดิบ — ใช้จับคู่ถอด/ใส่ */
+  positionCode: string | null
   /** ป้ายรถ (ชื่อเรียก · ทะเบียน) */
   vehicleLabel: string
   province: string | null

@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { loadShopGrantModels } from '@/lib/service-data'
 import { Badge, Card, CardHeader, EmptyState, StatTile, Table, TableWrap, Td, Th } from '@/components/ui'
 import { positionLabel } from '@/lib/axle-layouts'
+import { ChangeSideCell, ChangeSideHeaders, type ChangeSideInfo } from '@/components/tire-event-table'
+import { pairTireChanges, primaryEvent } from '@/lib/tire-change-rows'
 import { vehicleLabel } from '@/lib/vehicle-display'
 import { formatKm, formatNumber, formatThaiDate } from '@/lib/utils'
 import { companyNameMap, loadShopCustomers } from './shop-data'
@@ -23,10 +25,26 @@ interface EventRow {
   event_date: string
   position_code: string | null
   odometer: number
+  tread_mm: number | null
+  distance_km: number | null
+  note: string | null
   tires: { serial_no: string; brand_name: string | null; model_name: string | null } | null
-  vehicles: { nickname: string | null; plate_no: string | null; axle_type: string } | null
+  vehicles: { id: string; nickname: string | null; plate_no: string | null; axle_type: string } | null
   removal_reasons: { name: string } | null
   profiles: { full_name: string } | null
+}
+
+/** แปลง event เป็นข้อมูลฝั่งสำหรับ ChangeSideCell */
+function eventSide(e: EventRow | null): ChangeSideInfo | null {
+  if (!e) return null
+  return {
+    serialNo: e.tires?.serial_no,
+    brandModel: [e.tires?.brand_name, e.tires?.model_name].filter(Boolean).join(' ') || null,
+    treadMm: e.tread_mm,
+    distanceKm: e.event_type === 'unmount' ? e.distance_km : null,
+    reason: e.removal_reasons?.name,
+    note: e.note,
+  }
 }
 
 /** แท็บภาพรวมของร้านค้า/ดีลเลอร์: ตัวเลขรวมทุกลูกค้าของร้าน รุ่นยางที่กำหนด และงานล่าสุด */
@@ -54,8 +72,8 @@ export default async function ShopOverviewPage({ params }: { params: Promise<{ i
         ? Promise.resolve({ data: [] as EventRow[] })
         : supabase
             .from('tire_events')
-            .select('id, company_id, event_type, event_date, position_code, odometer, ' +
-              'tires(serial_no, brand_name, model_name), vehicles(nickname, plate_no, axle_type), removal_reasons(name), profiles(full_name)')
+            .select('id, company_id, event_type, event_date, position_code, odometer, tread_mm, distance_km, note, ' +
+              'tires(serial_no, brand_name, model_name), vehicles(id, nickname, plate_no, axle_type), removal_reasons(name), profiles(full_name)')
             .in('company_id', companyIds)
             .order('event_date', { ascending: false })
             .order('created_at', { ascending: false })
@@ -67,6 +85,7 @@ export default async function ShopOverviewPage({ params }: { params: Promise<{ i
   const mounted = statuses.filter((t) => t.status === 'mounted').length
   const inStock = statuses.filter((t) => t.status === 'in_stock').length
   const events = (eventData ?? []) as unknown as EventRow[]
+  const changeRows = pairTireChanges(events, (e) => e.vehicles?.id)
   const axleTypes = (axleTypeData ?? []) as AxleType[]
 
   return (
@@ -115,42 +134,39 @@ export default async function ShopOverviewPage({ params }: { params: Promise<{ i
           <EmptyState title="ยังไม่มีประวัติการเปลี่ยนยาง" description="ร้านยังไม่ได้บันทึกงานให้ลูกค้ารายใด" />
         ) : (
           <TableWrap>
-            <Table className="min-w-[900px]">
+            <Table className="min-w-[960px]">
               <thead>
                 <tr>
                   <Th>วันที่</Th>
                   <Th>ลูกค้า</Th>
-                  <Th>รายการ</Th>
                   <Th>รถ · ตำแหน่ง</Th>
-                  <Th>ซีรีย์ / รุ่น</Th>
+                  <ChangeSideHeaders />
                   <Th className="text-right">เลขไมล์</Th>
-                  <Th>สาเหตุ</Th>
                   <Th>ผู้บันทึก</Th>
                 </tr>
               </thead>
               <tbody>
-                {events.map((e) => (
-                  <tr key={e.id} className="hover:bg-brand-50/40">
-                    <Td className="whitespace-nowrap">{formatThaiDate(e.event_date)}</Td>
-                    <Td>
-                      <Link href={`/superadmin/companies/${e.company_id}`} className="font-medium text-ink-900 hover:text-brand-600">
-                        {names.get(e.company_id) ?? '-'}
-                      </Link>
-                    </Td>
-                    <Td><Badge tone={e.event_type === 'mount' ? 'brand' : 'amber'}>{e.event_type === 'mount' ? 'ใส่ยาง' : 'ถอดยาง'}</Badge></Td>
-                    <Td>
-                      {vehicleLabel(e.vehicles, 'รถถูกลบ')}
-                      <p className="text-xs text-ink-500">{positionLabel(e.position_code, e.vehicles?.axle_type ?? null, axleTypes)}</p>
-                    </Td>
-                    <Td>
-                      <span className="font-mono uppercase">{e.tires?.serial_no ?? '-'}</span>
-                      <p className="text-xs text-ink-500">{[e.tires?.brand_name, e.tires?.model_name].filter(Boolean).join(' ') || '-'}</p>
-                    </Td>
-                    <Td className="text-right">{formatKm(e.odometer)}</Td>
-                    <Td>{e.removal_reasons?.name ?? '-'}</Td>
-                    <Td>{e.profiles?.full_name ?? '-'}</Td>
-                  </tr>
-                ))}
+                {changeRows.map((row) => {
+                  const main = primaryEvent(row)
+                  return (
+                    <tr key={row.key} className="hover:bg-brand-50/40">
+                      <Td className="whitespace-nowrap">{formatThaiDate(row.event_date)}</Td>
+                      <Td>
+                        <Link href={`/superadmin/companies/${main.company_id}`} className="font-medium text-ink-900 hover:text-brand-600">
+                          {names.get(main.company_id) ?? '-'}
+                        </Link>
+                      </Td>
+                      <Td>
+                        {vehicleLabel(main.vehicles, 'รถถูกลบ')}
+                        <p className="text-xs text-ink-500">{positionLabel(row.position_code, main.vehicles?.axle_type ?? null, axleTypes)}</p>
+                      </Td>
+                      <Td><ChangeSideCell side={eventSide(row.unmount)} emptyText="ใส่ลงตำแหน่งว่าง" /></Td>
+                      <Td><ChangeSideCell side={eventSide(row.mount)} emptyText="ถอดเก็บ ไม่ใส่แทน" /></Td>
+                      <Td className="text-right">{formatKm(main.odometer)}</Td>
+                      <Td>{main.profiles?.full_name ?? '-'}</Td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </Table>
           </TableWrap>

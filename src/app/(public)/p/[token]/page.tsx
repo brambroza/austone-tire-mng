@@ -1,11 +1,12 @@
 import Link from 'next/link'
-import { ArrowDownToLine, ArrowUpFromLine, CircleDot, Phone, Truck } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, CircleDot, Phone, Repeat, Truck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { isPublicTokenFormat } from '@/lib/public-link'
 import { getLayout, positionLabel, type AxleTypeLayoutSource } from '@/lib/axle-layouts'
 import { vehicleLabel } from '@/lib/vehicle-display'
 import { tireBrandModelLabel } from '@/lib/tire-display'
 import { isUnknownSerial } from '@/lib/shop-rules'
+import { pairTireChanges, primaryEvent } from '@/lib/tire-change-rows'
 import { formatKm, formatNumber, formatThaiDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -86,6 +87,8 @@ export default async function PublicHistoryPage({
   const mountCount = events.filter((e) => e.event_type === 'mount').length
   const unmountCount = events.length - mountCount
   const serviceDays = new Set(events.map((e) => e.event_date)).size
+  // งานเปลี่ยนยาง (ถอด+ใส่ ตำแหน่งเดียวกัน วันเดียวกัน) แสดงเป็นรายการเดียว
+  const changeRows = pairTireChanges(events, (e) => e.vehicle_id)
 
   /** จำนวนครั้งที่เปลี่ยนต่อคัน — โชว์บน chip ตัวกรอง */
   const countByVehicle = new Map<string, number>()
@@ -162,54 +165,49 @@ export default async function PublicHistoryPage({
         )
       })()}
 
-      {/* รายการประวัติ */}
+      {/* รายการประวัติ — 1 รายการ = 1 งานเปลี่ยนยาง (ถอดออก + ใส่เข้า) */}
       <section className="mt-5">
         <div className="mb-2 flex items-end justify-between">
           <h2 className="text-base font-semibold">รายการถอด-ใส่ยาง</h2>
-          <span className="text-xs text-ink-400">{formatNumber(events.length)} รายการ · ล่าสุดขึ้นก่อน</span>
+          <span className="text-xs text-ink-400">{formatNumber(changeRows.length)} รายการ · ล่าสุดขึ้นก่อน</span>
         </div>
-        {events.length === 0 ? (
+        {changeRows.length === 0 ? (
           <div className="rounded-2xl bg-white px-5 py-10 text-center text-sm text-ink-500 shadow-sm ring-1 ring-line">
             ยังไม่มีประวัติการเปลี่ยนยาง
           </div>
         ) : (
           <ul className="space-y-2.5">
-            {events.map((e) => {
-              const vehicle = e.vehicle_id ? vehicleById.get(e.vehicle_id) ?? null : null
-              const isMount = e.event_type === 'mount'
+            {changeRows.map((row) => {
+              const main = primaryEvent(row)
+              const vehicle = main.vehicle_id ? vehicleById.get(main.vehicle_id) ?? null : null
+              const kind = row.unmount && row.mount ? 'change' : row.mount ? 'mount' : 'unmount'
+              const title = kind === 'change' ? 'เปลี่ยนยาง' : kind === 'mount' ? 'ใส่ยาง' : 'ถอดยาง'
+              const Icon = kind === 'change' ? Repeat : kind === 'mount' ? ArrowDownToLine : ArrowUpFromLine
               return (
-                <li key={e.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-line">
+                <li key={row.key} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-line">
                   <div className="flex items-start gap-3">
                     <span className={cn(
                       'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset',
-                      isMount ? 'bg-brand-50 text-brand-600 ring-brand-100' : 'bg-amber-50 text-amber-600 ring-amber-100',
+                      kind === 'unmount' ? 'bg-amber-50 text-amber-600 ring-amber-100' : 'bg-brand-50 text-brand-600 ring-brand-100',
                     )}>
-                      {isMount ? <ArrowDownToLine className="size-4.5" /> : <ArrowUpFromLine className="size-4.5" />}
+                      <Icon className="size-4.5" />
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                         <p className="font-semibold">
-                          {isMount ? 'ใส่ยาง' : 'ถอดยาง'}
-                          <span className="font-normal text-ink-500"> · {positionLabel(e.position_code, vehicle?.axle_type, history.axle_types)}</span>
+                          {title}
+                          <span className="font-normal text-ink-500"> · {positionLabel(row.position_code, vehicle?.axle_type, history.axle_types)}</span>
                         </p>
-                        <p className="text-sm text-ink-500">{formatThaiDate(e.event_date)}</p>
+                        <p className="text-sm text-ink-500">{formatThaiDate(row.event_date)}</p>
                       </div>
                       {!selected && (
                         <p className="mt-0.5 text-sm text-ink-700">{vehicleLabel(vehicle, 'รถถูกลบ')}</p>
                       )}
-                      <p className="mt-1.5 text-sm">
-                        <span className="font-mono uppercase text-ink-900">
-                          {isUnknownSerial(e.serial_no) ? 'ไม่ทราบซีรีย์' : e.serial_no}
-                        </span>
-                        <span className="text-ink-500"> · {tireBrandModelLabel(e.brand_name, e.model_name)}{e.size ? ` · ${e.size}` : ''}</span>
-                      </p>
-                      <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-ink-500">
-                        <span>เลขไมล์ {formatKm(e.odometer)}</span>
-                        {e.tread_mm !== null && <span>ดอกยาง {e.tread_mm} มม.</span>}
-                        {!isMount && e.distance_km !== null && <span>วิ่งรอบนี้ {formatKm(e.distance_km)}</span>}
-                        {!isMount && e.reason && <span>สาเหตุ: {e.reason}</span>}
-                      </p>
-                      {e.note && <p className="mt-1 text-xs text-ink-500">{e.note}</p>}
+                      <div className={cn('mt-2 grid gap-2', kind === 'change' && 'sm:grid-cols-2')}>
+                        {row.unmount && <PublicSide label="ถอดออก" tone="amber" e={row.unmount} />}
+                        {row.mount && <PublicSide label="ใส่เข้า" tone="brand" e={row.mount} />}
+                      </div>
+                      <p className="mt-2 text-xs text-ink-500">เลขไมล์ {formatKm(main.odometer)}</p>
                     </div>
                   </div>
                 </li>
@@ -224,6 +222,26 @@ export default async function PublicHistoryPage({
         <br />
         Austone Tire
       </footer>
+    </div>
+  )
+}
+
+/** ยาง 1 ฝั่งของงาน (ถอดออก / ใส่เข้า) ในการ์ดประวัติหน้า public */
+function PublicSide({ label, tone, e }: { label: string; tone: 'amber' | 'brand'; e: PublicHistory['events'][number] }) {
+  const facts = [
+    e.event_type === 'unmount' && e.distance_km !== null ? `วิ่งรอบนี้ ${formatKm(e.distance_km)}` : null,
+    e.tread_mm !== null ? `ดอกยาง ${e.tread_mm} มม.` : null,
+    e.event_type === 'unmount' && e.reason ? `สาเหตุ: ${e.reason}` : null,
+  ].filter(Boolean)
+  return (
+    <div className={cn('rounded-xl px-3 py-2 ring-1 ring-inset', tone === 'amber' ? 'bg-amber-50/60 ring-amber-100' : 'bg-brand-50/60 ring-brand-100')}>
+      <p className={cn('text-[11px] font-medium uppercase tracking-wide', tone === 'amber' ? 'text-amber-700' : 'text-brand-700')}>{label}</p>
+      <p className="mt-0.5 text-sm">
+        <span className="font-mono uppercase text-ink-900">{isUnknownSerial(e.serial_no) ? 'ไม่ทราบซีรีย์' : e.serial_no}</span>
+        <span className="text-ink-500"> · {tireBrandModelLabel(e.brand_name, e.model_name)}{e.size ? ` · ${e.size}` : ''}</span>
+      </p>
+      {facts.length > 0 && <p className="mt-0.5 text-xs text-ink-500">{facts.join(' · ')}</p>}
+      {e.note && <p className="mt-0.5 text-xs text-ink-500">{e.note}</p>}
     </div>
   )
 }

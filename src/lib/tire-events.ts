@@ -33,7 +33,7 @@ export interface VehicleEventRow {
   tread_mm: number | null
   distance_km: number | null
   note: string | null
-  tires: { serial_no: string } | null
+  tires: { serial_no: string; brand_name?: string | null; model_name?: string | null } | null
   removal_reasons: { name: string } | null
   profiles: { full_name: string } | null
 }
@@ -46,7 +46,7 @@ export const TIRE_EVENT_SELECT =
 /** select string ของมุมมองรถ */
 export const VEHICLE_EVENT_SELECT =
   'id, event_type, event_date, position_code, odometer, tread_mm, distance_km, note, ' +
-  'tires(serial_no), removal_reasons(name), profiles(full_name)'
+  'tires(serial_no, brand_name, model_name), removal_reasons(name), profiles(full_name)'
 
 /** จำนวนแถวสูงสุดที่ modal ประวัติดึงมาแสดงต่อครั้ง */
 export const HISTORY_LIMIT = 100

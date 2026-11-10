@@ -63,6 +63,8 @@ export default async function ShopReportsPage({
     companyName: companyName.get(e.company_id) ?? '-',
     eventType: e.event_type === 'mount' ? 'mount' : 'unmount',
     eventDate: e.event_date,
+    vehicleId: e.vehicles?.id ?? null,
+    positionCode: e.position_code,
     vehicleLabel: vehicleLabel(e.vehicles, 'รถถูกลบ'),
     province: e.vehicles?.province ?? null,
     positionLabel: positionLabel(e.position_code, e.vehicles?.axle_type ?? null, axleTypes),

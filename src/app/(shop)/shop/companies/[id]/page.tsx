@@ -4,16 +4,16 @@ import { ArrowLeft, Truck, Wrench } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
-import { Badge, Card, CardHeader, EmptyState, Table, TableWrap, Td, Th } from '@/components/ui'
+import { Card, CardHeader, EmptyState, Table, TableWrap, Td, Th } from '@/components/ui'
+import { ChangeSideCell, ChangeSideHeaders } from '@/components/tire-event-table'
+import { pairTireChanges, primaryEvent } from '@/lib/tire-change-rows'
 import { getLayout, positionLabel } from '@/lib/axle-layouts'
 import { vehicleLabel } from '@/lib/vehicle-display'
-import { tireBrandModelLabel } from '@/lib/tire-display'
-import { isUnknownSerial } from '@/lib/shop-rules'
 import { formatKm, formatThaiDate } from '@/lib/utils'
 import { CompanyAccountsClient, CompanyEditButton } from './company-detail-client'
 import { CompanyPublicLinkCard } from './company-public-link'
 import { getAppBaseUrl } from '@/lib/app-url'
-import { SHOP_EVENT_SELECT, type ShopEventRecord } from '../../shop-queries'
+import { SHOP_EVENT_SELECT, shopEventSide, type ShopEventRecord } from '../../shop-queries'
 import type { AxleType, Company, Profile, Vehicle } from '@/lib/database.types'
 
 export const metadata = { title: 'ลูกค้า · Austone Tire Shop' }
@@ -48,6 +48,8 @@ export default async function ShopCompanyPage({
   const events = (eventData ?? []) as unknown as ShopEventRecord[]
   const profiles = (profileData ?? []) as Profile[]
   const axleTypes = (axleTypeData ?? []) as AxleType[]
+  // งานเปลี่ยนยาง (ถอด+ใส่ ตำแหน่งเดียวกัน วันเดียวกัน) แสดงเป็นแถวเดียว
+  const changeRows = pairTireChanges(events, (e) => e.vehicles?.id)
 
   /** วันที่เปลี่ยนยางล่าสุดของแต่ละคัน (จาก 60 รายการล่าสุด) */
   const lastEventByVehicle = new Map<string, string>()
@@ -155,45 +157,33 @@ export default async function ShopCompanyPage({
             <EmptyState title="ยังไม่มีประวัติการเปลี่ยนยาง" />
           ) : (
             <TableWrap>
-              <Table className="min-w-[900px]">
+              <Table className="min-w-[960px]">
                 <thead>
                   <tr>
                     <Th>วันที่</Th>
-                    <Th>รายการ</Th>
                     <Th>รถ · ตำแหน่ง</Th>
-                    <Th>ซีรีย์</Th>
-                    <Th>ยี่ห้อ / รุ่น</Th>
+                    <ChangeSideHeaders />
                     <Th className="text-right">เลขไมล์</Th>
-                    <Th>สาเหตุ / หมายเหตุ</Th>
                     <Th>ผู้บันทึก</Th>
                   </tr>
                 </thead>
                 <tbody>
-                  {events.map((e) => (
-                    <tr key={e.id} className="hover:bg-brand-50/40">
-                      <Td className="whitespace-nowrap">{formatThaiDate(e.event_date)}</Td>
-                      <Td>
-                        <Badge tone={e.event_type === 'mount' ? 'brand' : 'amber'}>
-                          {e.event_type === 'mount' ? 'ใส่ยาง' : 'ถอดยาง'}
-                        </Badge>
-                      </Td>
-                      <Td>
-                        <span className="font-medium text-ink-900">{vehicleLabel(e.vehicles, 'รถถูกลบ')}</span>
-                        <p className="text-xs text-ink-500">{positionLabel(e.position_code, e.vehicles?.axle_type ?? null, axleTypes)}</p>
-                      </Td>
-                      <Td className="font-mono uppercase">
-                        {e.tires?.serial_no ?? '-'}
-                        {isUnknownSerial(e.tires?.serial_no) && <Badge tone="slate" className="ml-1.5">ไม่ทราบซีรีย์</Badge>}
-                      </Td>
-                      <Td>{tireBrandModelLabel(e.tires?.brand_name, e.tires?.model_name)}{e.tires?.size ? ` · ${e.tires.size}` : ''}</Td>
-                      <Td className="text-right">{formatKm(e.odometer)}</Td>
-                      <Td>
-                        <span>{e.removal_reasons?.name ?? (e.event_type === 'unmount' ? '-' : '')}</span>
-                        {e.note && <p className="max-w-64 whitespace-normal text-xs text-ink-500">{e.note}</p>}
-                      </Td>
-                      <Td>{e.profiles?.full_name ?? '-'}</Td>
-                    </tr>
-                  ))}
+                  {changeRows.map((row) => {
+                    const main = primaryEvent(row)
+                    return (
+                      <tr key={row.key} className="hover:bg-brand-50/40">
+                        <Td className="whitespace-nowrap">{formatThaiDate(row.event_date)}</Td>
+                        <Td>
+                          <span className="font-medium text-ink-900">{vehicleLabel(main.vehicles, 'รถถูกลบ')}</span>
+                          <p className="text-xs text-ink-500">{positionLabel(row.position_code, main.vehicles?.axle_type ?? null, axleTypes)}</p>
+                        </Td>
+                        <Td><ChangeSideCell side={shopEventSide(row.unmount)} emptyText="ใส่ลงตำแหน่งว่าง" /></Td>
+                        <Td><ChangeSideCell side={shopEventSide(row.mount)} emptyText="ถอดเก็บ ไม่ใส่แทน" /></Td>
+                        <Td className="text-right">{formatKm(main.odometer)}</Td>
+                        <Td>{main.profiles?.full_name ?? '-'}</Td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </Table>
             </TableWrap>

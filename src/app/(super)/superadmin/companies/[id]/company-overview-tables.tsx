@@ -5,6 +5,8 @@ import { Badge, Table, TableWrap, Td, Th } from '@/components/ui'
 import { Pagination, usePagination } from '@/components/ui/pagination'
 import { TireSpec } from '@/components/tire-spec'
 import { positionLabel } from '@/lib/axle-layouts'
+import { ChangeSideCell, ChangeSideHeaders, type ChangeSideInfo } from '@/components/tire-event-table'
+import { pairTireChanges, primaryEvent } from '@/lib/tire-change-rows'
 import { TIRE_STATUS_LABEL, TIRE_STATUS_TONE, formatKm, formatThaiDate } from '@/lib/utils'
 import type { TireOverview } from '@/lib/database.types'
 
@@ -13,57 +15,66 @@ export interface EventRow {
   event_type: string
   event_date: string
   position_code: string | null
+  odometer: number
+  tread_mm: number | null
   distance_km: number | null
-  tires: { serial_no: string } | null
-  vehicles: { nickname: string | null; plate_no: string | null; axle_type: string } | null
+  note: string | null
+  tires: { serial_no: string; brand_name: string | null; model_name: string | null } | null
+  vehicles: { id: string; nickname: string | null; plate_no: string | null; axle_type: string } | null
   removal_reasons: { name: string } | null
   profiles: { full_name: string } | null
 }
 
-/** ตารางประวัติถอด-ใส่ยางของลูกค้า พร้อมแบ่งหน้า (10 / 20 / ทั้งหมด) */
+/** แปลง event เป็นข้อมูลฝั่งสำหรับ ChangeSideCell */
+function eventSide(e: EventRow | null): ChangeSideInfo | null {
+  if (!e) return null
+  return {
+    serialNo: e.tires?.serial_no,
+    brandModel: [e.tires?.brand_name, e.tires?.model_name].filter(Boolean).join(' ') || null,
+    treadMm: e.tread_mm,
+    distanceKm: e.event_type === 'unmount' ? e.distance_km : null,
+    reason: e.removal_reasons?.name,
+    note: e.note,
+  }
+}
+
+/** ตารางประวัติถอด-ใส่ยางของลูกค้า — งานเปลี่ยนยางรวมถอด+ใส่เป็นแถวเดียว พร้อมแบ่งหน้า (10 / 20 / ทั้งหมด) */
 export function RecentEventsTable({ events }: { events: EventRow[] }) {
-  const pagination = usePagination(events)
+  const rows = pairTireChanges(events, (e) => e.vehicles?.id)
+  const pagination = usePagination(rows)
 
   return (
     <TableWrap>
-      <Table className="min-w-[720px]">
+      <Table className="min-w-[820px]">
         <thead>
           <tr>
             <Th>วันที่</Th>
-            <Th>รายการ</Th>
-            <Th>เลขยาง</Th>
             <Th>รถ / ตำแหน่ง</Th>
-            <Th className="text-right">ระยะรอบนี้</Th>
-            <Th>สาเหตุ</Th>
+            <ChangeSideHeaders />
+            <Th className="text-right">เลขไมล์</Th>
             <Th>ผู้บันทึก</Th>
           </tr>
         </thead>
         <tbody>
-          {pagination.pageItems.map((e) => (
-            <tr key={e.id} className="transition-colors hover:bg-brand-50/40">
-              <Td className="whitespace-nowrap">{formatThaiDate(e.event_date)}</Td>
-              <Td>
-                <Badge tone={e.event_type === 'mount' ? 'brand' : 'amber'}>
-                  {e.event_type === 'mount' ? 'ใส่ยาง' : 'ถอดยาง'}
-                </Badge>
-              </Td>
-              <Td className="font-medium text-ink-900">{e.tires?.serial_no ?? '-'}</Td>
-              <Td>
-                {vehicleLabel(e.vehicles)}
-                <p className="text-xs text-ink-400">
-                  {positionLabel(e.position_code, e.vehicles?.axle_type)}
-                </p>
-              </Td>
-              <Td className="text-right">
-                {e.distance_km !== null ? formatKm(e.distance_km) : '-'}
-              </Td>
-              <Td>{e.removal_reasons?.name ?? '-'}</Td>
-              <Td className="text-ink-500">{e.profiles?.full_name ?? '-'}</Td>
-            </tr>
-          ))}
+          {pagination.pageItems.map((row) => {
+            const main = primaryEvent(row)
+            return (
+              <tr key={row.key} className="transition-colors hover:bg-brand-50/40">
+                <Td className="whitespace-nowrap">{formatThaiDate(row.event_date)}</Td>
+                <Td>
+                  {vehicleLabel(main.vehicles)}
+                  <p className="text-xs text-ink-400">{positionLabel(row.position_code, main.vehicles?.axle_type)}</p>
+                </Td>
+                <Td><ChangeSideCell side={eventSide(row.unmount)} emptyText="ใส่ลงตำแหน่งว่าง" /></Td>
+                <Td><ChangeSideCell side={eventSide(row.mount)} emptyText="ถอดเก็บ ไม่ใส่แทน" /></Td>
+                <Td className="text-right">{formatKm(main.odometer)}</Td>
+                <Td className="text-ink-500">{main.profiles?.full_name ?? '-'}</Td>
+              </tr>
+            )
+          })}
         </tbody>
       </Table>
-      <Pagination state={pagination} itemLabel="รายการ" />
+      <Pagination state={pagination} itemLabel="งาน" />
     </TableWrap>
   )
 }
