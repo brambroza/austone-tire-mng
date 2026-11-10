@@ -7,6 +7,7 @@ import { loadServiceWizardData, loadShopGrantModels } from '@/lib/service-data'
 import { PageHeader } from '@/components/app-shell'
 import { Card, EmptyState } from '@/components/ui'
 import { ServiceWizard } from '@/app/(app)/service/service-wizard'
+import { CustomerSearch } from '@/components/customer-search'
 import { loadShopCompanies } from '../shop-queries'
 import type { Company } from '@/lib/database.types'
 
@@ -28,6 +29,7 @@ export default async function ShopServicePage({
 
   if (!companyId) {
     const companies = await loadShopCompanies(supabase)
+    const active = companies.filter((c) => c.is_active)
     return (
       <>
         <PageHeader title="บันทึกการถอด-ใส่ยาง" subtitle="เลือกลูกค้าที่รถเข้ามาเปลี่ยนยาง" />
@@ -44,8 +46,24 @@ export default async function ShopServicePage({
               }
             />
           ) : (
+            <>
+              <div className="border-b border-line px-5 py-4">
+                <CustomerSearch
+                  customers={active.map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    code: c.code,
+                    contact_name: c.contact_name,
+                    phone: c.phone,
+                    detail: [c.code, `${c.vehicle_count} คัน`, c.contact_name].filter(Boolean).join(' · '),
+                  }))}
+                  autoFocus
+                  hrefTemplate="/shop/service?company={id}"
+                />
+                <p className="mt-2 text-sm text-ink-500">พิมพ์ค้นหาแล้วเลือก หรือแตะจากรายชื่อด้านล่าง ({active.length} ราย)</p>
+              </div>
             <ul className="divide-y divide-line">
-              {companies.filter((c) => c.is_active).map((c) => (
+              {active.map((c) => (
                 <li key={c.id}>
                   <Link
                     href={`/shop/service?company=${c.id}`}
@@ -65,6 +83,7 @@ export default async function ShopServicePage({
                 </li>
               ))}
             </ul>
+            </>
           )}
         </Card>
       </>

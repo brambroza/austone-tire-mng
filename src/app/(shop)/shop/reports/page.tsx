@@ -2,7 +2,8 @@ import { Filter } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
-import { Button, Card, Field, Input, Select } from '@/components/ui'
+import { Button, Card, Field, Input } from '@/components/ui'
+import { CustomerSearch } from '@/components/customer-search'
 import { positionLabel } from '@/lib/axle-layouts'
 import { vehicleLabel } from '@/lib/vehicle-display'
 import { isUnknownSerial } from '@/lib/shop-rules'
@@ -47,7 +48,7 @@ export default async function ShopReportsPage({
   if (filters.to) eventQuery = eventQuery.lte('event_date', filters.to)
 
   const [{ data: companyData }, { data: eventData }, { data: axleTypeData }] = await Promise.all([
-    supabase.from('companies').select('id, name').order('name'),
+    supabase.from('companies').select('id, name, code, contact_name, phone').order('name'),
     eventQuery,
     supabase.from('axle_types').select('*'),
   ])
@@ -89,12 +90,7 @@ export default async function ShopReportsPage({
         {/* ฟอร์ม GET ธรรมดา: ตัวกรองอยู่ใน URL แชร์/บุ๊กมาร์กได้ ไม่ต้องใช้ JS */}
         <form method="get" className="grid gap-4 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
           <Field label="ลูกค้า">
-            <Select name="company" defaultValue={filters.companyId}>
-              <option value="">ทุกราย</option>
-              {companies.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </Select>
+            <CustomerSearch customers={companies} name="company" defaultValue={filters.companyId} allowEmpty emptyLabel="ทุกราย" />
           </Field>
           <Field label="ตั้งแต่วันที่">
             <Input type="date" name="from" defaultValue={filters.from} />

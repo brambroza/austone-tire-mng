@@ -1,87 +1,135 @@
 import { Suspense } from 'react'
-import { Star } from 'lucide-react'
+import { Star, Truck, Gauge, Warehouse } from 'lucide-react'
 import { LoginForm } from './login-form'
 import { LoginScene, TireMark } from './login-motion'
 
 export const metadata = { title: 'เข้าสู่ระบบ · Austone Tire' }
 
+/** จุดเด่นของระบบ แสดงเป็น chip ใต้หัวข้อฝั่งซ้าย */
 const HIGHLIGHTS = [
-  'เลือกตำแหน่งล้อจากแผนผังรถได้ทันที',
-  'รู้ทุกเส้นว่าอยู่รถคันไหน หรืออยู่ในคลัง',
-  'สรุประยะวิ่งสะสมและต้นทุนต่อกิโลเมตร',
+  { icon: Truck, text: 'เลือกตำแหน่งล้อจากแผนผังรถ' },
+  { icon: Warehouse, text: 'รู้ทุกเส้นว่าอยู่รถคันไหนหรือในคลัง' },
+  { icon: Gauge, text: 'สรุประยะวิ่งและต้นทุนต่อกิโลเมตร' },
 ]
 
+/**
+ * หน้า login โทนเหลือง Austone — พื้นเหลืองพาสเทลเต็มจอ, การ์ดฟอร์มสีขาว,
+ * จุดเน้นสีดำถ่านตามโลโก้ (กล่องดำ + ดาวเหลือง)
+ */
 export default function LoginPage() {
   return (
     <LoginScene>
-      <div className="grid min-h-dvh lg:grid-cols-[1.1fr_1fr]">
-        {/* ฝั่งซ้าย: brand panel (ซ่อนบนจอแคบ) */}
-        <aside className="relative hidden overflow-hidden bg-ink-900 lg:flex lg:flex-col lg:justify-between lg:p-14">
-          <div
-            data-float
-            className="pointer-events-none absolute -left-24 -top-32 size-[34rem] rounded-full opacity-60 blur-3xl"
-            style={{ background: 'radial-gradient(circle, var(--color-brand-700), transparent 65%)' }}
-          />
-          <div
-            data-float
-            className="pointer-events-none absolute -bottom-40 -right-20 size-[32rem] rounded-full opacity-50 blur-3xl"
-            style={{ background: 'radial-gradient(circle, var(--color-brand-500), transparent 65%)' }}
-          />
-          <TireMark className="pointer-events-none absolute -right-32 top-1/2 size-[36rem] -translate-y-1/2 text-white/[0.06]" />
+      <div className="relative flex min-h-dvh flex-col overflow-hidden bg-brand-300 text-ink-900">
+        {/* พื้นหลัง: ไล่เฉดเหลือง + ลายจุด + ล้อยางหมุนช้า ๆ */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(900px 600px at 0% 0%, var(--color-brand-200), transparent 70%), ' +
+              'radial-gradient(800px 700px at 100% 100%, var(--color-brand-400), transparent 70%)',
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.18]"
+          style={{
+            backgroundImage: 'radial-gradient(var(--color-ink-900) 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
+            maskImage: 'linear-gradient(to bottom, black 20%, transparent 90%)',
+          }}
+        />
+        <div
+          data-float
+          className="pointer-events-none absolute -left-32 top-1/3 size-[30rem] rounded-full bg-white/50 blur-3xl"
+        />
+        <div
+          data-float
+          className="pointer-events-none absolute -right-24 -top-24 size-[26rem] rounded-full bg-brand-500/40 blur-3xl"
+        />
+        <TireMark className="pointer-events-none absolute -bottom-40 -right-28 size-[34rem] text-ink-900/[0.07] lg:-bottom-56 lg:size-[46rem]" />
 
-          <div className="relative">
-            <div
-              data-anim
-              className="flex size-11 items-center justify-center rounded-2xl bg-white/10 text-lg font-semibold text-white ring-1 ring-inset ring-white/15 backdrop-blur"
-            >
+        {/* แถบบน: โลโก้ */}
+        <header className="relative z-10 flex items-center justify-between px-6 py-6 sm:px-10 lg:px-14">
+          <div data-anim className="flex items-center gap-3">
+            <div className="flex size-11 items-center justify-center rounded-2xl bg-ink-900 shadow-[0_12px_28px_-12px_rgba(26,26,26,0.6)]">
               <Star className="size-5 fill-brand-500 text-brand-500" strokeWidth={1.5} />
             </div>
-            <h2 data-anim className="mt-10 text-4xl font-semibold leading-[1.2] tracking-tight text-white">
-              ระบบจัดการยาง
-              <br />
-              รถบรรทุก
-            </h2>
-            <p data-anim className="mt-5 max-w-sm text-[15px] leading-relaxed text-brand-200/80">
-              บันทึกการถอด-ใส่ยางหน้างานด้วย iPad ติดตามระยะใช้งานยางรายเส้น
-              และแจ้งเตือนอัตโนมัติเมื่อถึงเกณฑ์ที่กำหนด
-            </p>
+            <div className="leading-tight">
+              <p className="text-[15px] font-bold uppercase tracking-[0.18em]">Austone</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-ink-700">Thailand</p>
+            </div>
           </div>
+          <span
+            data-anim
+            className="hidden rounded-full border border-ink-900/15 px-3.5 py-1.5 text-xs font-medium tracking-wide text-ink-700 sm:inline-flex"
+          >
+            Tire Management
+          </span>
+        </header>
 
-          <ul className="relative space-y-4 text-[15px] text-white/70">
-            {HIGHLIGHTS.map((t) => (
-              <li key={t} data-anim className="flex items-center gap-3">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-brand-300 ring-1 ring-inset ring-white/15">
-                  <svg viewBox="0 0 20 20" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M4 10.5l4 4 8-9" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-                {t}
-              </li>
-            ))}
-          </ul>
+        {/* เนื้อหา */}
+        <main className="relative z-10 flex flex-1 items-center px-6 pb-10 sm:px-10 lg:px-14">
+          <div className="mx-auto grid w-full max-w-6xl grid-cols-[minmax(0,1fr)] items-center gap-12 lg:grid-cols-[1.15fr_minmax(0,26rem)] lg:gap-20">
+            {/* ฝั่งซ้าย: หัวเรื่อง */}
+            <section className="min-w-0 max-w-xl">
+              <p
+                data-anim
+                className="inline-flex items-center gap-2 rounded-full bg-ink-900 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-brand-300"
+              >
+                <span className="size-1.5 rounded-full bg-brand-500" />
+                ระบบจัดการยาง
+              </p>
+            {/*   <h1
+                data-anim
+                className="mt-6 text-[2.6rem] font-bold leading-[1.08] tracking-tight sm:text-6xl"
+              >
+                ยางทุกเส้น
+                <br />
+                รู้ว่าอยู่ตรงไหน
+                <br />
+                <span className="whitespace-nowrap text-ink-900/40">วิ่งไปเท่าไร</span>
+              </h1> */}
+              <p data-anim className="mt-6 max-w-md text-[15px] leading-relaxed text-ink-700 sm:text-base">
+                บันทึกการถอด-ใส่ยางหน้างานด้วย iPad ติดตามระยะใช้งานรายเส้น
+                และแจ้งเตือนอัตโนมัติเมื่อถึงเกณฑ์ที่กำหนด
+              </p>
 
-          <p data-anim className="relative text-sm text-white/35">
-            © Austone Thailand · Austone Tire Management
-          </p>
-        </aside>
+              <ul className="mt-8 flex flex-wrap gap-2.5">
+                {HIGHLIGHTS.map(({ icon: Icon, text }) => (
+                  <li
+                    key={text}
+                    data-anim
+                    className="inline-flex items-center gap-2 rounded-full border border-ink-900/10 bg-white/60 px-3.5 py-2 text-[13px] font-medium text-ink-800 backdrop-blur"
+                  >
+                    <Icon className="size-4 text-ink-900" strokeWidth={2} />
+                    {text}
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-        {/* ฝั่งขวา: ฟอร์ม */}
-        <main className="flex items-center justify-center px-6 py-14 lg:bg-surface">
-          <div className="w-full max-w-[22rem]">
-            <div data-anim className="mb-9 flex size-11 items-center justify-center rounded-2xl bg-ink-900 shadow-[0_10px_24px_-12px_rgba(26,26,26,0.5)] lg:hidden">
-              <Star className="size-5 fill-brand-500 text-brand-500" strokeWidth={1.5} />
-            </div>
-            <h1 data-anim className="text-[26px] font-semibold tracking-tight text-ink-900">
-              เข้าสู่ระบบ
-            </h1>
-            <p data-anim className="mt-2 text-sm leading-relaxed text-ink-500">
-              กรอกอีเมลและรหัสผ่านที่ได้รับจากผู้ดูแลระบบ
-            </p>
-            <Suspense fallback={<div className="mt-9 h-64 animate-pulse rounded-2xl bg-brand-50" />}>
-              <LoginForm />
-            </Suspense>
+            {/* ฝั่งขวา: การ์ดฟอร์ม */}
+            <section
+              data-anim
+              className="relative min-w-0 rounded-[1.75rem] bg-white p-6 shadow-[0_30px_80px_-30px_rgba(26,26,26,0.35)] ring-1 ring-ink-900/5 sm:p-9"
+            >
+              <span className="absolute -top-3 right-8 rounded-full bg-brand-500 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-ink-900">
+                Sign in
+              </span>
+              <h2 className="text-2xl font-semibold tracking-tight">เข้าสู่ระบบ</h2>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-500">
+                กรอกอีเมลและรหัสผ่านที่ได้รับจากผู้ดูแลระบบ
+              </p>
+              <Suspense fallback={<div className="mt-8 h-64 animate-pulse rounded-2xl bg-brand-50" />}>
+                <LoginForm />
+              </Suspense>
+            </section>
           </div>
         </main>
+
+        <footer className="relative z-10 flex flex-wrap items-center justify-between gap-2 px-6 pb-6 text-xs text-ink-900/55 sm:px-10 lg:px-14">
+          <p data-anim>© Austone Thailand · Austone Tire Management</p>
+          <p data-anim className="hidden sm:block"></p>
+        </footer>
       </div>
     </LoginScene>
   )

@@ -133,7 +133,7 @@ export function LoginForm() {
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="mt-9 space-y-5">
+    <form ref={formRef} onSubmit={handleSubmit} className="mt-8 space-y-5">
       {error && (
         <div
           ref={errorRef}
@@ -193,7 +193,7 @@ export function LoginForm() {
               // เอาติ๊กออกกลางคัน = ลบของที่จำไว้ทันที ไม่ต้องรอ login รอบถัดไป
               if (!e.target.checked) window.localStorage.removeItem(REMEMBER_KEY)
             }}
-            className="mt-0.5 size-5 shrink-0 rounded border-line text-brand-600 focus:ring-brand-200"
+            className="mt-0.5 size-5 shrink-0 rounded border-line accent-ink-900 focus:ring-brand-200"
           />
           <span className="text-sm text-ink-700">
             จำอีเมลและรหัสผ่านไว้ในเครื่องนี้
@@ -205,7 +205,12 @@ export function LoginForm() {
       </div>
 
       <div data-row className="pt-1">
-        <Button type="submit" size="lg" loading={loading} className="group w-full">
+        <Button
+          type="submit"
+          size="lg"
+          loading={loading}
+          className="group w-full bg-ink-900 text-brand-400 shadow-[0_14px_30px_-14px_rgba(26,26,26,0.7)] hover:bg-ink-800 active:bg-ink-900"
+        >
           เข้าสู่ระบบ
           {!loading && (
             <ArrowRight className="size-4.5 transition-transform group-hover:translate-x-0.5" />

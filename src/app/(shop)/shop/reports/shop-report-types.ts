@@ -30,6 +30,10 @@ export interface ShopReportRow {
 export interface ShopReportCompanyOption {
   id: string
   name: string
+  /** ใช้ค้นหาในช่องเลือกลูกค้า */
+  code?: string | null
+  contact_name?: string | null
+  phone?: string | null
 }
 
 /** ช่วงวันที่ที่กรอง (YYYY-MM-DD, ว่าง = ไม่จำกัดด้านนั้น) */
