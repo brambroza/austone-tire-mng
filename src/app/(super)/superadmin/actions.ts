@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireSession } from '@/lib/auth'
-import { AUSTONE_WRITE_ROLES, DEALER_MANAGER_ROLES } from '@/lib/roles'
+import { AUSTONE_WRITE_ROLES, DEALER_MANAGER_ROLES, SHOP_STAFF_ASSIGNABLE_ROLES } from '@/lib/roles'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { removeTireImage, storeTireImage } from '@/lib/tire-images'
 import { ActionResult, fail, optionalNumber, optionalText, zodFail } from '@/lib/action-result'
@@ -784,12 +784,14 @@ const shopUserSchema = z.object({
   password: z.string().min(6, 'รหัสผ่านอย่างน้อย 6 ตัวอักษร'),
   full_name: z.string().trim().min(1, 'กรุณากรอกชื่อ-นามสกุล'),
   phone: optionalText,
+  /** ระดับสิทธิ์ — Austone สร้างบัญชีแรกของร้านจึงเริ่มที่แอดมินร้าน */
+  role: z.enum(SHOP_STAFF_ASSIGNABLE_ROLES, { message: 'กรุณาเลือกระดับสิทธิ์' }).default('shop'),
 })
 
 export type ShopUserInput = z.input<typeof shopUserSchema>
 
 /**
- * สร้างบัญชีพนักงานร้านค้า (role = shop) — ใช้ service role สร้าง auth user แล้วผูก profile กับร้าน
+ * สร้างบัญชีพนักงานร้านค้า (แอดมินร้าน shop / ช่างร้าน shop_technician) — ใช้ service role สร้าง auth user แล้วผูก profile กับร้าน
  * @param input ข้อมูลผู้ใช้
  */
 export async function createShopUser(input: ShopUserInput): Promise<ActionResult> {
@@ -815,7 +817,7 @@ export async function createShopUser(input: ShopUserInput): Promise<ActionResult
     id: created.user.id,
     company_id: null,
     shop_id: parsed.data.shop_id,
-    role: 'shop',
+    role: parsed.data.role,
     full_name: parsed.data.full_name,
     phone: parsed.data.phone,
   })

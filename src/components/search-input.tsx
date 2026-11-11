@@ -48,7 +48,7 @@ export function SearchInput({
         inputMode="search"
         className={cn(
           'h-12 w-full rounded-xl border border-line bg-white pl-11 pr-10 text-base',
-          'placeholder:text-ink-400 hover:border-brand-200 focus:border-brand-400',
+          'placeholder:text-ink-400 hover:border-brand-200 focus:border-brand-500',
           'focus:outline-none focus:ring-4 focus:ring-brand-100',
           pending && 'opacity-70',
         )}

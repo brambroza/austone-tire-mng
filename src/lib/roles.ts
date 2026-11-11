@@ -6,6 +6,11 @@
  *   austone_admin ทุกอย่างเหมือน super_admin ยกเว้นจัดการบัญชีทีม Austone
  *   sales         ดูได้ทุกหน้าของ Austone + จัดการร้านค้า/ดีลเลอร์ (สร้าง/แก้ร้าน กำหนดรุ่นยาง บัญชีร้าน)
  * ฝั่ง DB: is_super_admin() = super_admin + austone_admin · is_austone_staff() = รวม sales
+ *
+ * ร้านค้า/ดีลเลอร์ (migration 026/027):
+ *   shop            แอดมินร้าน — จัดการลูกค้าของร้าน ลิงก์ลูกค้า บัญชีช่าง เรียกดูรายงาน และบันทึกถอด-ใส่ได้ด้วย
+ *   shop_technician ช่างร้าน — บันทึกถอด-ใส่ยางให้ลูกค้าของร้านเท่านั้น
+ * ฝั่ง DB: is_shop_user() = ทั้งสอง · is_shop_admin() = เฉพาะ shop
  */
 
 import type { UserRole } from '@/lib/database.types'
@@ -22,6 +27,16 @@ export const DEALER_MANAGER_ROLES: UserRole[] = ['super_admin', 'austone_admin',
 /** role ที่จัดการบัญชีทีม Austone ได้ */
 export const TEAM_MANAGER_ROLES: UserRole[] = ['super_admin']
 
+/** ทุก role ของพนักงานร้าน — เข้าหน้า /shop ได้ */
+export const SHOP_ROLES: UserRole[] = ['shop', 'shop_technician']
+
+/** role ที่จัดการลูกค้าของร้าน ลิงก์ลูกค้า บัญชีช่าง และดูรายงานได้ */
+export const SHOP_ADMIN_ROLES: UserRole[] = ['shop']
+
+/** role ของพนักงานร้านที่เลือกได้ตอนสร้างบัญชี (ทั้งแอดมินร้านและ Austone) */
+export const SHOP_STAFF_ASSIGNABLE_ROLES = ['shop', 'shop_technician'] as const
+export type ShopStaffRole = (typeof SHOP_STAFF_ASSIGNABLE_ROLES)[number]
+
 /** role ของทีม Austone ที่ super admin สร้างให้ได้จากหน้า "ผู้ใช้งาน" */
 export const AUSTONE_TEAM_ASSIGNABLE_ROLES = ['austone_admin', 'sales'] as const
 export type AustoneTeamRole = (typeof AUSTONE_TEAM_ASSIGNABLE_ROLES)[number]
@@ -33,7 +48,8 @@ export const ROLE_LABEL: Record<UserRole, string> = {
   sales: 'เซล',
   admin: 'แอดมินบริษัท',
   technician: 'ช่าง',
-  shop: 'ร้านค้า',
+  shop: 'แอดมินร้าน',
+  shop_technician: 'ช่างร้าน',
 }
 
 /** เป็นทีม Austone (เข้าหน้า /superadmin ได้) */
@@ -54,4 +70,14 @@ export function canManageDealers(role: UserRole): boolean {
 /** จัดการบัญชีทีม Austone ได้ */
 export function canManageAustoneTeam(role: UserRole): boolean {
   return TEAM_MANAGER_ROLES.includes(role)
+}
+
+/** เป็นพนักงานร้าน (แอดมินร้านหรือช่างร้าน) */
+export function isShopStaff(role: UserRole): boolean {
+  return SHOP_ROLES.includes(role)
+}
+
+/** จัดการลูกค้าของร้าน/รายงาน/บัญชีช่างได้ (แอดมินร้าน) */
+export function isShopAdmin(role: UserRole): boolean {
+  return SHOP_ADMIN_ROLES.includes(role)
 }

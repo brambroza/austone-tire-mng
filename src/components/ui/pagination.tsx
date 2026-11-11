@@ -119,7 +119,7 @@ export function Pagination<T>({
             aria-label="จำนวนต่อหน้า"
             value={String(pageSize)}
             onChange={(e) => setPageSize(e.target.value === 'all' ? 'all' : (Number(e.target.value) as PageSize))}
-            className="h-10 rounded-lg border border-line bg-white px-2.5 text-sm text-ink-900 hover:border-brand-200 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-100"
+            className="h-10 rounded-lg border border-line bg-white px-2.5 text-sm text-ink-900 hover:border-brand-200 focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-100"
           >
             {sizeOptions.map((opt) => (
               <option key={String(opt)} value={String(opt)}>
@@ -156,7 +156,7 @@ export function Pagination<T>({
                 className={cn(
                   PAGE_BTN,
                   p === page
-                    ? 'bg-brand-400 text-ink-900'
+                    ? 'bg-brand-500 text-ink-900'
                     : 'text-ink-600 hover:bg-brand-50 hover:text-brand-600',
                 )}
               >

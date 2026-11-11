@@ -116,7 +116,7 @@ export function ShopCompaniesClient({ companies }: { companies: ShopCompanyRow[]
                       <div className="flex items-center justify-end gap-1">
                         <Link
                           href={`/shop/service?company=${c.id}`}
-                          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand-400 px-3 text-sm font-medium text-ink-900 hover:bg-brand-500"
+                          className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-brand-500 px-3 text-sm font-medium text-ink-900 hover:bg-ink-900 hover:text-brand-500"
                         >
                           <Wrench className="size-4" />
                           บันทึกยาง

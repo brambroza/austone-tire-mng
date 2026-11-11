@@ -191,12 +191,12 @@ function WheelButton({
         'group relative flex w-[3.75rem] flex-col items-center gap-1 rounded-xl border px-1 py-2 sm:w-[4.5rem] sm:px-2 sm:py-2.5',
         'transition-all duration-150',
         tone === 'selected' &&
-          'border-brand-400 bg-brand-400 text-ink-900 shadow-[0_12px_26px_-14px_rgba(245,233,7,0.6)]',
+          'border-brand-500 bg-brand-500 text-ink-900 shadow-[0_12px_26px_-14px_rgba(245,233,7,0.6)]',
         tone === 'done' && 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-200',
         tone === 'alert' && 'border-amber-300 bg-amber-50 text-amber-700',
         tone === 'mounted' && 'border-emerald-300 bg-emerald-50 text-emerald-700',
         tone === 'empty' && 'border-dashed border-slate-300 bg-white text-ink-400',
-        selectable && !active && 'hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 active:scale-95',
+        selectable && !active && 'hover:border-brand-500 hover:bg-brand-50 hover:text-brand-700 active:scale-95',
         !selectable && !viewOnly && !done && 'opacity-40',
       )}
     >

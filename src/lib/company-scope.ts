@@ -1,5 +1,5 @@
 import { requireSession, type SessionContext } from '@/lib/auth'
-import { AUSTONE_WRITE_ROLES, canEditCentral } from '@/lib/roles'
+import { AUSTONE_WRITE_ROLES, SHOP_ROLES, canEditCentral, isShopStaff } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionResult } from '@/lib/action-result'
 import type { UserRole } from '@/lib/database.types'
@@ -37,7 +37,7 @@ async function assertCompanyInShop(session: SessionContext, companyId: string): 
  *
  * - แอดมิน/ช่างของลูกค้า → ทำได้เฉพาะบริษัทตัวเอง (ค่า companyId ที่ส่งมาถูกละเว้น)
  * - super admin → ต้องระบุ companyId เสมอ เพราะไม่ได้สังกัดบริษัทใด
- * - ร้านค้า (เมื่ออยู่ใน allowed) → ต้องระบุ companyId และบริษัทนั้นต้องอยู่ภายใต้ร้าน
+ * - ร้านค้า (แอดมินร้าน/ช่างร้าน เมื่ออยู่ใน allowed) → ต้องระบุ companyId และบริษัทนั้นต้องอยู่ภายใต้ร้าน
  *
  * @param allowed role ที่เข้าถึง action นี้ได้ (super_admin จะถูกเติมให้อัตโนมัติ)
  * @param companyId บริษัทเป้าหมาย ใช้กรณี super admin และร้านค้า
@@ -55,7 +55,7 @@ export async function resolveCompanyScope(
     return { ok: true, session, companyId }
   }
 
-  if (session.profile.role === 'shop') {
+  if (isShopStaff(session.profile.role)) {
     if (!companyId) return { ok: false, error: 'กรุณาเลือกลูกค้าก่อน' }
     return assertCompanyInShop(session, companyId)
   }
@@ -71,7 +71,7 @@ export async function resolveCompanyScope(
  * ขอบเขตของงานหน้าช่าง (บันทึกถอด-ใส่ยาง)
  *
  * - แอดมิน/ช่าง → บริษัทตัวเอง
- * - ร้านค้า → ลูกค้าที่เลือก (ต้องอยู่ภายใต้ร้าน) และเปิดกฎร้านค้า:
+ * - ร้านค้า (แอดมินร้านและช่างร้าน) → ลูกค้าที่เลือก (ต้องอยู่ภายใต้ร้าน) และเปิดกฎร้านค้า:
  *   ใส่ได้เฉพาะยาง AUSTONE, ถอดยางที่ไม่ทราบซีรีย์ได้
  *
  * super admin ไม่บันทึกงานหน้างานแทนลูกค้า (เหมือนเดิม)
@@ -80,9 +80,9 @@ export async function resolveCompanyScope(
 export async function resolveServiceScope(
   companyId?: string,
 ): Promise<ScopeResult & ({ ok: true; isShop: boolean } | { ok: false })> {
-  const session = await requireSession(['admin', 'technician', 'shop'])
+  const session = await requireSession(['admin', 'technician', ...SHOP_ROLES])
 
-  if (session.profile.role === 'shop') {
+  if (isShopStaff(session.profile.role)) {
     if (!companyId) return { ok: false, error: 'กรุณาเลือกลูกค้าก่อนบันทึกงาน' }
     const scope = await assertCompanyInShop(session, companyId)
     return scope.ok ? { ...scope, isShop: true } : scope

@@ -52,7 +52,7 @@ export default async function TireImportPage() {
             action={
               <Link
                 href="/tires"
-                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-400 px-5 text-[15px] font-medium text-ink-900 hover:bg-brand-500"
+                className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-500 px-5 text-[15px] font-medium text-ink-900 hover:bg-ink-900 hover:text-brand-500"
               >
                 <ArrowLeft className="size-5" />
                 กลับไปคลังยาง

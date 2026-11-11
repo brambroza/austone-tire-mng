@@ -3,7 +3,8 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Menu, X, LogOut, ChevronRight, PanelLeftClose, PanelLeftOpen, Star } from 'lucide-react'
+import { Menu, X, LogOut, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { BrandLogo, BrandMark } from '@/components/brand'
 import { cn } from '@/lib/utils'
 import type { UserRole } from '@/lib/database.types'
 
@@ -19,7 +20,8 @@ const ROLE_LABEL: Record<UserRole, string> = {
   super_admin: 'ผู้ดูแลระบบ (Austone Thailand)',
   admin: 'แอดมินบริษัท',
   technician: 'ช่าง',
-  shop: 'ร้านค้า',
+  shop: 'แอดมินร้าน',
+  shop_technician: 'ช่างร้าน',
   austone_admin: 'แอดมิน',
   sales: 'เซล',
 }
@@ -106,14 +108,15 @@ export function AppShell({
    */
   const renderSidebar = (compact: boolean) => (
     <div className="flex h-full flex-col">
-      <div className={cn('flex items-center gap-3 py-5', compact ? 'flex-col px-2' : 'px-5')}>
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-ink-900 shadow-[0_8px_20px_-8px_rgba(26,26,26,0.5)]">
-          <Star className="size-5 fill-brand-500 text-brand-500" strokeWidth={1.5} />
-        </div>
-        {!compact && (
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-ink-900">Austone Tire</p>
-            <p className="truncate text-xs text-ink-400">ระบบจัดการยางรถบรรทุก</p>
+      <div className={cn('flex items-center gap-3 border-b border-white/10 py-5', compact ? 'flex-col px-2' : 'px-5')}>
+        {compact ? (
+          <BrandMark size={44} className="shrink-0 ring-2 ring-brand-500" />
+        ) : (
+          <div className="min-w-0 flex-1">
+            <BrandLogo lockup width={196} />
+            <p className="mt-1.5 truncate text-[10px] font-medium uppercase tracking-[0.18em] text-brand-500/80">
+              Tire Management
+            </p>
           </div>
         )}
 
@@ -122,7 +125,7 @@ export function AppShell({
           type="button"
           onClick={() => setOpen(false)}
           aria-label="ปิดเมนู"
-          className="ml-auto flex size-10 items-center justify-center rounded-xl text-ink-400 hover:bg-brand-50 md:hidden"
+          className="ml-auto flex size-10 items-center justify-center rounded-xl text-white/60 hover:bg-white/10 hover:text-white md:hidden"
         >
           <X className="size-5" />
         </button>
@@ -134,7 +137,7 @@ export function AppShell({
           aria-label={collapsed ? 'ขยายเมนู' : 'ย่อเมนู'}
           title={collapsed ? 'ขยายเมนู' : 'ย่อเมนู'}
           className={cn(
-            'hidden size-10 items-center justify-center rounded-xl text-ink-400 transition-colors hover:bg-brand-50 hover:text-brand-600 md:flex',
+            'hidden size-10 items-center justify-center rounded-xl text-white/60 transition-colors hover:bg-white/10 hover:text-brand-500 md:flex',
             compact ? 'mt-1' : 'ml-auto',
           )}
         >
@@ -155,11 +158,11 @@ export function AppShell({
                 'tap-target group flex items-center rounded-xl text-[15px] font-medium transition-colors',
                 compact ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5',
                 active
-                  ? 'bg-brand-400 text-ink-900 shadow-[0_8px_20px_-12px_rgba(245,233,7,0.6)]'
-                  : 'text-ink-700 hover:bg-brand-50 active:bg-brand-100',
+                  ? 'bg-brand-500 text-ink-900 shadow-[0_10px_24px_-12px_rgba(245,233,7,0.9)]'
+                  : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15',
               )}
             >
-              <span className={cn('shrink-0', active ? 'text-ink-900' : 'text-brand-600')}>{item.icon}</span>
+              <span className={cn('shrink-0', active ? 'text-ink-900' : 'text-brand-500')}>{item.icon}</span>
               {!compact && (
                 <>
                   <span className="truncate">{item.label}</span>
@@ -171,18 +174,18 @@ export function AppShell({
         })}
       </nav>
 
-      <div className={cn('border-t border-line py-3', compact ? 'px-2' : 'px-3')}>
+      <div className={cn('border-t border-white/10 py-3', compact ? 'px-2' : 'px-3')}>
         <div
           className={cn('flex items-center rounded-xl py-2', compact ? 'justify-center px-0' : 'gap-3 px-2')}
           title={compact ? `${userName} · ${companyName ?? ROLE_LABEL[role]}` : undefined}
         >
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-500 text-sm font-bold text-ink-900">
             {userName.trim().charAt(0) || '?'}
           </div>
           {!compact && (
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-ink-900">{userName}</p>
-              <p className="truncate text-xs text-ink-400">{companyName ?? ROLE_LABEL[role]}</p>
+              <p className="truncate text-sm font-medium text-white">{userName}</p>
+              <p className="truncate text-xs text-white/50">{companyName ?? ROLE_LABEL[role]}</p>
             </div>
           )}
         </div>
@@ -191,7 +194,7 @@ export function AppShell({
             type="submit"
             title={compact ? 'ออกจากระบบ' : undefined}
             className={cn(
-              'tap-target mt-1 flex w-full items-center rounded-xl text-[15px] font-medium text-ink-500 transition-colors hover:bg-rose-50 hover:text-rose-600',
+              'tap-target mt-1 flex w-full items-center rounded-xl text-[15px] font-medium text-white/60 transition-colors hover:bg-rose-500/15 hover:text-rose-300',
               compact ? 'justify-center px-0 py-2.5' : 'gap-3 px-3 py-2.5',
             )}
           >
@@ -208,7 +211,7 @@ export function AppShell({
       {/* Sidebar ถาวร — ตั้งแต่ iPad แนวตั้งขึ้นไป, ย่อเป็นรางไอคอนได้ */}
       <aside
         className={cn(
-          'hidden shrink-0 border-r border-line bg-surface transition-[width] duration-200 md:block',
+          'hidden shrink-0 border-r-4 border-brand-500 bg-ink-900 transition-[width] duration-200 md:block',
           collapsed ? 'w-[4.75rem]' : 'w-64',
         )}
       >
@@ -219,7 +222,7 @@ export function AppShell({
       {open && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-ink-900/25 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
-          <aside className="animate-fade-up absolute inset-y-0 left-0 w-72 border-r border-line bg-surface shadow-[var(--shadow-lift)]">
+          <aside className="animate-fade-up absolute inset-y-0 left-0 w-72 border-r-4 border-brand-500 bg-ink-900 shadow-[var(--shadow-lift)]">
             {renderSidebar(false)}
           </aside>
         </div>
@@ -227,16 +230,17 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar — แสดงทุกขนาดจอ */}
-        <header className="glass sticky top-0 z-30 flex items-center gap-3 border-b border-line px-4 py-2.5 sm:px-6">
+        <header className="glass sticky top-0 z-30 flex items-center gap-3 border-b-2 border-brand-500 px-4 py-2.5 sm:px-6">
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label="เปิดเมนู"
-            className="flex size-11 items-center justify-center rounded-xl text-ink-700 hover:bg-brand-50 md:hidden"
+            className="flex size-11 items-center justify-center rounded-xl bg-ink-900 text-brand-500 hover:bg-ink-800 md:hidden"
           >
             <Menu className="size-6" />
           </button>
 
+          <BrandMark size={36} className="shrink-0 md:hidden" />
           <div className="min-w-0">
             <p className="truncate text-[15px] font-semibold text-ink-900">
               {currentSection?.label ?? 'Austone Tire'}
@@ -247,7 +251,7 @@ export function AppShell({
           <div className="ml-auto flex items-center gap-1.5">
             {topbarActions}
             <div
-              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-semibold text-brand-700"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-sm font-bold text-brand-500"
               title={`${userName} · ${companyName ?? ROLE_LABEL[role]}`}
             >
               {userName.trim().charAt(0) || '?'}
@@ -279,10 +283,14 @@ export function PageHeader({
         {breadcrumb && breadcrumb.length > 0 && (
           <p className="mb-1 truncate text-xs text-ink-400">{breadcrumb.join(' / ')}</p>
         )}
-        <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{title}</h1>
+        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-tight text-ink-900">
+          <span aria-hidden className="h-7 w-1.5 shrink-0 rounded-full bg-brand-500" />
+          {title}
+        </h1>
         {subtitle && <div className="mt-1 text-sm text-ink-500">{subtitle}</div>}
       </div>
       {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
     </div>
   )
 }
+

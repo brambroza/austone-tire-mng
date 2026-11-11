@@ -1,5 +1,6 @@
 import { Filter } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
+import { SHOP_ADMIN_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
 import { Button, Card, Field, Input } from '@/components/ui'
@@ -7,6 +8,7 @@ import { CustomerSearch } from '@/components/customer-search'
 import { positionLabel } from '@/lib/axle-layouts'
 import { vehicleLabel } from '@/lib/vehicle-display'
 import { isUnknownSerial } from '@/lib/shop-rules'
+import { hideBackfillEvents } from '@/lib/tire-change-rows'
 import { ShopReportClient } from './shop-report-client'
 import type { ShopReportCompanyOption, ShopReportFilters, ShopReportRow } from './shop-report-types'
 import { SHOP_EVENT_SELECT, type ShopEventRecord } from '../shop-queries'
@@ -28,7 +30,7 @@ export default async function ShopReportsPage({
 }: {
   searchParams: Promise<{ company?: string; from?: string; to?: string }>
 }) {
-  const { shop } = await requireSession(['shop'])
+  const { shop } = await requireSession(SHOP_ADMIN_ROLES)
   const params = await searchParams
   const filters: ShopReportFilters = {
     companyId: params.company && UUID.test(params.company) ? params.company : '',
@@ -57,7 +59,10 @@ export default async function ShopReportsPage({
   const companyName = new Map(companies.map((c) => [c.id, c.name]))
   const axleTypes = (axleTypeData ?? []) as AxleType[]
 
-  const rows: ShopReportRow[] = ((eventData ?? []) as unknown as ShopEventRecord[]).map((e) => ({
+  // ตัด event "ใส่ยางย้อนหลัง" ที่ระบบแทรกตอนถอดยางที่ไม่มีในระบบ — ไม่ใช่งานที่ร้านทำ
+  // ถ้านับรวมจะได้ยอดใส่ยางเกินจริง และแถวถอด/ใส่จับคู่ผิด (ดู hideBackfillEvents)
+  const events = hideBackfillEvents((eventData ?? []) as unknown as ShopEventRecord[])
+  const rows: ShopReportRow[] = events.map((e) => ({
     id: e.id,
     companyId: e.company_id,
     companyName: companyName.get(e.company_id) ?? '-',

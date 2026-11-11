@@ -1,4 +1,5 @@
 import { requireSession } from '@/lib/auth'
+import { SHOP_ADMIN_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
 import { ShopCompaniesClient } from './shop-companies-client'
@@ -12,7 +13,7 @@ export default async function ShopHomePage({
 }: {
   searchParams: Promise<{ q?: string }>
 }) {
-  const { shop } = await requireSession(['shop'])
+  const { shop } = await requireSession(SHOP_ADMIN_ROLES)
   const { q } = await searchParams
   const supabase = await createClient()
   const companies = await loadShopCompanies(supabase, q)

@@ -56,7 +56,7 @@ export function Modal({
           width,
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b-2 border-brand-500 px-5 py-4">
           <div className="min-w-0">
             <h2 className="text-lg font-semibold text-ink-900">{title}</h2>
             {description && <p className="mt-0.5 text-sm text-ink-500">{description}</p>}
@@ -111,7 +111,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onClose}
-            className="h-12 rounded-xl border border-line bg-white px-5 text-[15px] font-medium text-ink-700 hover:bg-brand-50"
+            className="h-12 rounded-xl border-2 border-ink-900/15 bg-white px-5 text-[15px] font-medium text-ink-900 hover:border-ink-900 hover:bg-brand-50"
           >
             ยกเลิก
           </button>

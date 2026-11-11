@@ -3,16 +3,28 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, KeyRound, Pencil, Plus, Power, PowerOff, Trash2, Users } from 'lucide-react'
-import { Badge, Button, Card, EmptyState, Field, Input, Table, TableWrap, Td, Th } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, Field, Input, Select, Table, TableWrap, Td, Th } from '@/components/ui'
 import { ConfirmDialog, Modal } from '@/components/ui/modal'
 import { formatThaiDate } from '@/lib/utils'
 import {
   createShopStaff, deleteShopStaff, resetShopStaffPassword, setShopStaffActive, updateShopStaff,
   type ShopStaffInput,
 } from './actions'
+import { ROLE_LABEL, SHOP_STAFF_ASSIGNABLE_ROLES, type ShopStaffRole } from '@/lib/roles'
 import type { Profile } from '@/lib/database.types'
 
-const EMPTY: ShopStaffInput = { email: '', password: '', full_name: '', phone: '', employee_no: '' }
+const EMPTY: ShopStaffInput = { email: '', password: '', full_name: '', phone: '', employee_no: '', role: 'shop_technician' }
+
+/** คำอธิบายสิทธิ์แต่ละระดับ (แสดงใต้ช่องเลือก) */
+const ROLE_HINT: Record<ShopStaffRole, string> = {
+  shop: 'จัดการลูกค้าของร้าน ลิงก์ลูกค้า บัญชีช่าง เรียกดูรายงาน และบันทึกถอด-ใส่ยางได้',
+  shop_technician: 'บันทึกถอด-ใส่ยางให้ลูกค้าของร้านเท่านั้น',
+}
+
+/** role ที่ส่งมาจาก DB → ระดับที่เลือกได้ในฟอร์ม (บัญชีเก่าที่ไม่ตรงถือเป็นแอดมินร้าน) */
+function toShopStaffRole(role: Profile['role']): ShopStaffRole {
+  return role === 'shop_technician' ? 'shop_technician' : 'shop'
+}
 
 /** แถวพนักงานร้าน — มีอีเมลเมื่อ server ดึงจาก auth ได้ */
 export type ShopStaffRow = Profile & { email?: string | null }
@@ -42,7 +54,7 @@ export function ShopStaffClient({ members, currentUserId }: { members: ShopStaff
 
   function openEdit(m: Profile) {
     setEditing(m)
-    setForm({ email: '', password: '', full_name: m.full_name, phone: m.phone ?? '', employee_no: m.employee_no ?? '' })
+    setForm({ email: '', password: '', full_name: m.full_name, phone: m.phone ?? '', employee_no: m.employee_no ?? '', role: toShopStaffRole(m.role) })
     setError(null); setFieldErrors({}); setFormOpen(true)
   }
 
@@ -50,7 +62,7 @@ export function ShopStaffClient({ members, currentUserId }: { members: ShopStaff
     e.preventDefault()
     setLoading(true); setError(null); setFieldErrors({})
     const result = editing
-      ? await updateShopStaff(editing.id, { full_name: form.full_name, phone: form.phone, employee_no: form.employee_no })
+      ? await updateShopStaff(editing.id, { full_name: form.full_name, phone: form.phone, employee_no: form.employee_no, role: form.role })
       : await createShopStaff(form)
     setLoading(false)
     if (!result.ok) {
@@ -107,11 +119,12 @@ export function ShopStaffClient({ members, currentUserId }: { members: ShopStaff
           <EmptyState icon={<Users className="size-6" />} title="ยังไม่มีช่างในร้าน" action={<Button onClick={openCreate}><Plus className="size-4.5" />เพิ่มช่าง</Button>} />
         ) : (
           <TableWrap>
-            <Table className="min-w-[720px]">
+            <Table className="min-w-[820px]">
               <thead>
                 <tr>
                   <Th>ชื่อ-นามสกุล</Th>
                   {showEmail && <Th>อีเมล</Th>}
+                  <Th>ระดับสิทธิ์</Th>
                   <Th>รหัสพนักงาน</Th>
                   <Th>เบอร์โทร</Th>
                   <Th>สถานะ</Th>
@@ -127,6 +140,7 @@ export function ShopStaffClient({ members, currentUserId }: { members: ShopStaff
                       {m.id === currentUserId && <span className="ml-2 text-xs text-ink-400">(คุณ)</span>}
                     </Td>
                     {showEmail && <Td className="text-ink-600">{m.email ?? '-'}</Td>}
+                    <Td><Badge tone={m.role === 'shop' ? 'brand' : 'sky'}>{ROLE_LABEL[m.role]}</Badge></Td>
                     <Td>{m.employee_no ?? '-'}</Td>
                     <Td>{m.phone ?? '-'}</Td>
                     <Td><Badge tone={m.is_active ? 'emerald' : 'slate'}>{m.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}</Badge></Td>
@@ -164,7 +178,7 @@ export function ShopStaffClient({ members, currentUserId }: { members: ShopStaff
         open={formOpen}
         onClose={() => setFormOpen(false)}
         title={editing ? 'แก้ไขข้อมูลช่าง' : 'เพิ่มช่างใหม่'}
-        description={editing ? editing.full_name : 'ระบบสร้างบัญชีเข้าใช้งานให้ทันที — ช่างเห็นลูกค้าและบันทึกงานได้เหมือนบัญชีร้านทุกคน'}
+        description={editing ? editing.full_name : 'ระบบสร้างบัญชีเข้าใช้งานให้ทันที — เลือกระดับสิทธิ์ให้ตรงหน้าที่'}
         footer={
           <>
             <Button type="button" variant="secondary" onClick={() => setFormOpen(false)}>ยกเลิก</Button>
@@ -191,6 +205,22 @@ export function ShopStaffClient({ members, currentUserId }: { members: ShopStaff
           )}
           <Field label="ชื่อ-นามสกุล" required error={fieldErrors.full_name}>
             <Input value={form.full_name} onChange={(e) => set('full_name', e.target.value)} />
+          </Field>
+          <Field
+            label="ระดับสิทธิ์"
+            required
+            error={fieldErrors.role}
+            hint={editing?.id === currentUserId ? 'เปลี่ยนระดับสิทธิ์ของตัวเองไม่ได้' : ROLE_HINT[form.role ?? 'shop_technician']}
+          >
+            <Select
+              value={form.role ?? 'shop_technician'}
+              onChange={(e) => set('role', e.target.value as ShopStaffRole)}
+              disabled={editing?.id === currentUserId}
+            >
+              {SHOP_STAFF_ASSIGNABLE_ROLES.map((r) => (
+                <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+              ))}
+            </Select>
           </Field>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field label="รหัสพนักงาน" error={fieldErrors.employee_no}>

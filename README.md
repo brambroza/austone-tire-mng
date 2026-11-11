@@ -1,7 +1,7 @@
 # Austone Tire — ระบบจัดการยางรถบรรทุก
 
 ระบบบันทึกการถอด-ใส่ยางรายเส้น ติดตามระยะใช้งาน และแจ้งเตือนเมื่อถึงเกณฑ์
-UI แบบ modern minimal โทนฟ้าอ่อน เน้นการใช้งานบน **iPad** สำหรับช่างหน้างาน
+UI โทนแบรนด์ Austone (เหลือง-ดำ) เน้นการใช้งานบน **iPad** สำหรับช่างหน้างาน
 ส่วน **Super Admin (Austone Thailand)** ออกแบบสำหรับเดสก์ท็อป
 
 ## Tech stack
@@ -18,6 +18,9 @@ UI แบบ modern minimal โทนฟ้าอ่อน เน้นการ
 ทีม Austone มี 3 ระดับ (migration 024/025): `super_admin` ทุกอย่าง + จัดการบัญชีทีมที่เมนู **ผู้ใช้งาน** · `austone_admin` ทุกอย่างยกเว้นจัดการทีม ·
 `sales` ดูได้ทุกหน้า + จัดการร้านค้า/ดีลเลอร์ (สร้าง/แก้ร้าน กำหนดรุ่นยาง บัญชีร้าน) ปุ่มแก้ข้อมูลกลางถูกซ่อน และ RLS/server action ปฏิเสธ
 กฎอยู่ใน [`src/lib/roles.ts`](src/lib/roles.ts) · ฝั่ง DB: `is_super_admin()` = super + austone_admin, `is_austone_staff()` = รวม sales, `is_true_super_admin()` = super เท่านั้น
+
+บัญชีร้านค้า/ดีลเลอร์มี 2 ระดับ (migration 026/027): `shop` **แอดมินร้าน** จัดการลูกค้าของร้าน ลิงก์ลูกค้า บัญชีช่าง เรียกดูรายงาน และบันทึกถอด-ใส่ยางได้ ·
+`shop_technician` **ช่างร้าน** บันทึกถอด-ใส่ยางให้ลูกค้าของร้านอย่างเดียว (login แล้วเข้า `/shop/service` เมนูเดียว) · ฝั่ง DB: `is_shop_user()` = ทั้งสอง, `is_shop_admin()` = เฉพาะ `shop`
 
 | Role | ใช้ที่ | สิทธิ์ |
 | --- | --- | --- |
@@ -62,7 +65,8 @@ SUPABASE_SERVICE_ROLE_KEY=     # ใช้เฉพาะฝั่ง server ต
 >
 > **ร้านค้า (shop)** ใช้ `020_shop_role.sql` (รันเดี่ยว ๆ ก่อน เพราะเพิ่มค่า enum) แล้วตามด้วย `021_shops.sql` และ `022_shop_catalog_public_links.sql`
 > **ทีม Austone (เซล/แอดมิน)** ใช้ `024_austone_roles.sql` (รันเดี่ยว ๆ — enum) แล้วตามด้วย `025_austone_roles_rls.sql`
-> ตรวจผลด้วย `supabase/scripts/verify_021.sql` / `verify_022.sql` — รายละเอียดการออกแบบอยู่ใน [`docs/shop-layer-plan.md`](docs/shop-layer-plan.md)
+> **ระดับสิทธิ์ร้าน (แอดมินร้าน/ช่างร้าน)** ใช้ `026_shop_technician_role.sql` (รันเดี่ยว ๆ — enum) แล้วตามด้วย `027_shop_technician_rls.sql`
+> ตรวจผลด้วย `supabase/scripts/verify_021.sql` / `verify_022.sql` / `verify_027.sql` — รายละเอียดการออกแบบอยู่ใน [`docs/shop-layer-plan.md`](docs/shop-layer-plan.md)
 4. สร้าง user แรกที่ Authentication → Add user แล้วผูก profile:
 
 ```sql

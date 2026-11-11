@@ -457,7 +457,7 @@ export function TireImportClient({
               {historyPath && (
                 <Link
                   href={result.importId ? `${historyPath}?batch=${result.importId}` : historyPath}
-                  className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-400 px-5 text-[15px] font-medium text-ink-900 hover:bg-brand-500"
+                  className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-500 px-5 text-[15px] font-medium text-ink-900 hover:bg-ink-900 hover:text-brand-500"
                 >
                   ดูรายการที่นำเข้ารอบนี้
                 </Link>
@@ -468,7 +468,7 @@ export function TireImportClient({
                   'inline-flex min-h-12 items-center gap-2 rounded-xl px-5 text-[15px] font-medium',
                   historyPath
                     ? 'border border-line bg-white text-ink-700 hover:bg-brand-50'
-                    : 'bg-brand-400 text-ink-900 hover:bg-brand-500',
+                    : 'bg-brand-500 text-ink-900 hover:bg-ink-900 hover:text-brand-500',
                 )}
               >
                 ไปที่คลังยาง
@@ -497,7 +497,7 @@ function StepIndicator({ current }: { current: Step }) {
             <span
               className={cn(
                 'flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold ring-1 ring-inset',
-                active && 'bg-brand-400 text-ink-900 ring-brand-400',
+                active && 'bg-brand-500 text-ink-900 ring-brand-400',
                 done && 'bg-emerald-100 text-emerald-700 ring-emerald-300',
                 !active && !done && 'bg-white text-ink-400 ring-line',
               )}

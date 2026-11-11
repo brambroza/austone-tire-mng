@@ -3,7 +3,8 @@
 /* ============================================================
    Austone Tire — Design tokens
    อ้างอิง brand Austone Thailand: เหลืองเลมอน #F5E907 + ดำถ่าน #2F2E2E + ขาว
-   ปรับเป็นโทนพาสเทล minimal บนพื้นขาว, ออกแบบ touch-first สำหรับ iPad
+   เน้นคู่สีเหลือง-ดำตามแบรนด์: sidebar/แถบหัวเป็นดำ, ปุ่มหลัก/จุดเน้นเป็นเหลืองแท้, เนื้อหาบนพื้นขาว
+   ออกแบบ touch-first สำหรับ iPad
    - brand-300/400 = เหลืองพาสเทลสำหรับพื้นปุ่ม/แถบเลือก (ใช้คู่ตัวอักษร ink-900)
    - brand-500     = เหลือง brand แท้ ใช้เป็น accent (focus ring, จุดเน้น, กราฟ)
    - brand-600/700 = มัสตาร์ด/ทองแก่ สำหรับตัวอักษรและไอคอนบนพื้นขาว
@@ -47,12 +48,14 @@
   html {
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: transparent;
+    /* วางพื้นหลังที่ root เพื่อให้ canvas ทั้งหน้า (รวมส่วนที่ยาวเกิน viewport) เป็นสีเดียวกัน ไม่เกิดรอยต่อ */
+    background:
+      radial-gradient(1200px 600px at 100% -10%, var(--color-brand-200), transparent 60%) no-repeat,
+      var(--color-brand-50);
   }
 
   body {
-    background:
-      radial-gradient(1200px 600px at 100% -10%, var(--color-brand-100), transparent 60%),
-      var(--color-surface-alt);
+    background: transparent;
     color: var(--color-ink-900);
     font-family: var(--font-sans);
     min-height: 100dvh;
@@ -61,13 +64,13 @@
     overscroll-behavior-x: none;
   }
 
-  ::selection { background: var(--color-brand-200); color: var(--color-ink-900); }
+  ::selection { background: var(--color-brand-500); color: var(--color-ink-900); }
 
   /* scrollbar บาง ๆ ให้เข้ากับธีม */
-  * { scrollbar-width: thin; scrollbar-color: var(--color-brand-200) transparent; }
+  * { scrollbar-width: thin; scrollbar-color: var(--color-brand-500) transparent; }
   *::-webkit-scrollbar { width: 10px; height: 10px; }
   *::-webkit-scrollbar-thumb {
-    background: var(--color-brand-200);
+    background: var(--color-brand-500);
     border-radius: 999px;
     border: 3px solid transparent;
     background-clip: content-box;

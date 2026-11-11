@@ -1,5 +1,5 @@
 import { requireSession } from '@/lib/auth'
-import { AUSTONE_ROLES } from '@/lib/roles'
+import { AUSTONE_ROLES, SHOP_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Building2 } from 'lucide-react'
@@ -27,7 +27,7 @@ export default async function ShopsPage() {
   const [{ data: shopData }, { data: companies }, { data: profiles }] = await Promise.all([
     supabase.from('shops').select('*').order('name'),
     supabase.from('companies').select('shop_id').not('shop_id', 'is', null),
-    supabase.from('profiles').select('shop_id').eq('role', 'shop'),
+    supabase.from('profiles').select('shop_id').in('role', SHOP_ROLES),
   ])
 
   const companyCount = countBy(companies ?? [])

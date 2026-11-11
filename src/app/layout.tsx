@@ -13,11 +13,12 @@ export const metadata: Metadata = {
   title: 'Austone Tire — ระบบจัดการยางรถบรรทุก',
   description: 'บันทึกถอด-ใส่ยางและติดตามระยะวิ่งของยางแต่ละเส้น แจ้งเตือนเมื่อถึงเกณฑ์',
   applicationName: 'Austone Tire',
-  appleWebApp: { capable: true, title: 'Austone Tire', statusBarStyle: 'default' },
+  appleWebApp: { capable: true, title: 'Austone Tire', statusBarStyle: 'black' },
+  // favicon.ico / icon.png / apple-icon.png ใน src/app ถูก Next ใส่ <link> ให้อัตโนมัติ (มาสคอตบนพื้นเหลือง)
 }
 
 export const viewport: Viewport = {
-  themeColor: '#fefce6',
+  themeColor: '#f5e907',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1, // กัน iPad zoom ตอนโฟกัส input

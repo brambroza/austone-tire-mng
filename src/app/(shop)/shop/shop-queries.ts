@@ -83,6 +83,7 @@ export async function loadShopCompanies(supabase: Supabase, q?: string): Promise
 export interface ShopEventRecord {
   id: string
   company_id: string
+  tire_id: string
   event_type: string
   event_date: string
   position_code: string | null
@@ -114,6 +115,6 @@ export function shopEventSide(e: ShopEventRecord | null): ChangeSideInfo | null 
 }
 
 export const SHOP_EVENT_SELECT =
-  'id, company_id, event_type, event_date, position_code, odometer, tread_mm, distance_km, note, ' +
+  'id, company_id, tire_id, event_type, event_date, position_code, odometer, tread_mm, distance_km, note, ' +
   'tires(serial_no, brand_name, model_name, size), vehicles(id, nickname, plate_no, province, axle_type), ' +
   'removal_reasons(name), profiles(full_name)'

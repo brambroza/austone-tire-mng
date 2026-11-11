@@ -6,7 +6,7 @@
 
 /** shop = พนักงานร้านค้าที่เปลี่ยนยางให้ลูกค้าหลายราย (migration 020) */
 /** super_admin / austone_admin / sales = ทีม Austone (migration 024) · admin / technician = บริษัทลูกค้าปลายทาง · shop = ร้านค้า/ดีลเลอร์ */
-export type UserRole = 'super_admin' | 'austone_admin' | 'sales' | 'admin' | 'technician' | 'shop'
+export type UserRole = 'super_admin' | 'austone_admin' | 'sales' | 'admin' | 'technician' | 'shop' | 'shop_technician'
 export type TireStatus = 'in_stock' | 'mounted' | 'scrapped' | 'retreading'
 export type TireEventType = 'mount' | 'unmount'
 export type AxleKind = 'single' | 'dual'
@@ -71,7 +71,7 @@ export type Company = {
 export type Profile = {
   id: string
   company_id: string | null
-  /** ร้านค้าที่สังกัด — มีค่าเฉพาะ role = 'shop' (migration 021) */
+  /** ร้านค้าที่สังกัด — มีค่าเฉพาะ role = 'shop' / 'shop_technician' (migration 021/026) */
   shop_id: string | null
   role: UserRole
   full_name: string

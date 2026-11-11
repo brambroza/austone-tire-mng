@@ -3,19 +3,26 @@
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertCircle, Plus, Users } from 'lucide-react'
-import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, Table, TableWrap, Td, Th } from '@/components/ui'
+import { Badge, Button, Card, CardHeader, EmptyState, Field, Input, Select, Table, TableWrap, Td, Th } from '@/components/ui'
 import { Modal } from '@/components/ui/modal'
 import { createShopUser, type ShopUserInput } from '../../actions'
+import { ROLE_LABEL, SHOP_STAFF_ASSIGNABLE_ROLES, type ShopStaffRole } from '@/lib/roles'
 import type { Profile } from '@/lib/database.types'
 
-/** บัญชีพนักงานร้านค้า + สร้างบัญชีใหม่ (super admin) */
+/** คำอธิบายสิทธิ์แต่ละระดับของบัญชีร้าน */
+const ROLE_HINT: Record<ShopStaffRole, string> = {
+  shop: 'จัดการลูกค้าของร้าน ลิงก์ลูกค้า บัญชีช่าง เรียกดูรายงาน และบันทึกถอด-ใส่ยางได้',
+  shop_technician: 'บันทึกถอด-ใส่ยางให้ลูกค้าของร้านเท่านั้น',
+}
+
+/** บัญชีพนักงานร้านค้า (แอดมินร้าน/ช่างร้าน) + สร้างบัญชีใหม่ (ทีม Austone) */
 export function ShopUsersClient({ shopId, users }: { shopId: string; users: Profile[] }) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
-  const EMPTY: ShopUserInput = { shop_id: shopId, email: '', password: '', full_name: '', phone: '' }
+  const EMPTY: ShopUserInput = { shop_id: shopId, email: '', password: '', full_name: '', phone: '', role: 'shop' }
   const [form, setForm] = React.useState<ShopUserInput>(EMPTY)
 
   const set = <K extends keyof ShopUserInput>(key: K, value: ShopUserInput[K]) =>
@@ -43,7 +50,7 @@ export function ShopUsersClient({ shopId, users }: { shopId: string; users: Prof
       <Card>
         <CardHeader
           title="บัญชีพนักงานร้าน"
-          description={`ทั้งหมด ${users.length} บัญชี — เข้าระบบแล้วเห็นเฉพาะลูกค้าภายใต้ร้านนี้`}
+          description={`ทั้งหมด ${users.length} บัญชี — แอดมินร้านจัดการลูกค้า/รายงาน/ช่าง · ช่างร้านบันทึกถอด-ใส่ยางอย่างเดียว`}
           action={
             <Button size="sm" onClick={() => { setError(null); setFieldErrors({}); setOpen(true) }}>
               <Plus className="size-4" />
@@ -59,6 +66,7 @@ export function ShopUsersClient({ shopId, users }: { shopId: string; users: Prof
               <thead>
                 <tr>
                   <Th>ชื่อ-นามสกุล</Th>
+                  <Th>ระดับสิทธิ์</Th>
                   <Th>เบอร์โทร</Th>
                   <Th>สถานะ</Th>
                 </tr>
@@ -67,6 +75,7 @@ export function ShopUsersClient({ shopId, users }: { shopId: string; users: Prof
                 {users.map((u) => (
                   <tr key={u.id} className="hover:bg-brand-50/40">
                     <Td className="font-medium text-ink-900">{u.full_name}</Td>
+                    <Td><Badge tone={u.role === 'shop' ? 'brand' : 'sky'}>{ROLE_LABEL[u.role]}</Badge></Td>
                     <Td>{u.phone ?? '-'}</Td>
                     <Td><Badge tone={u.is_active ? 'emerald' : 'slate'}>{u.is_active ? 'ใช้งาน' : 'ปิดใช้งาน'}</Badge></Td>
                   </tr>
@@ -107,9 +116,18 @@ export function ShopUsersClient({ shopId, users }: { shopId: string; users: Prof
               <Input value={form.password} onChange={(e) => set('password', e.target.value)} autoComplete="new-password" />
             </Field>
           </div>
-          <Field label="เบอร์โทร" error={fieldErrors.phone}>
-            <Input value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} inputMode="tel" />
-          </Field>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="ระดับสิทธิ์" required error={fieldErrors.role} hint={ROLE_HINT[form.role ?? 'shop']}>
+              <Select value={form.role ?? 'shop'} onChange={(e) => set('role', e.target.value as ShopStaffRole)}>
+                {SHOP_STAFF_ASSIGNABLE_ROLES.map((r) => (
+                  <option key={r} value={r}>{ROLE_LABEL[r]}</option>
+                ))}
+              </Select>
+            </Field>
+            <Field label="เบอร์โทร" error={fieldErrors.phone}>
+              <Input value={form.phone ?? ''} onChange={(e) => set('phone', e.target.value)} inputMode="tel" />
+            </Field>
+          </div>
         </form>
       </Modal>
     </>

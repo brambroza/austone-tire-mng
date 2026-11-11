@@ -1029,7 +1029,7 @@ export function ServiceWizard({
                   className={cn(
                     'flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors',
                     index === activeIndex
-                      ? 'border-brand-400 bg-brand-400 text-ink-900'
+                      ? 'border-brand-500 bg-brand-500 text-ink-900'
                       : done
                         ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                         : 'border-rose-300 bg-rose-50 text-rose-700',
@@ -1159,7 +1159,7 @@ export function ServiceWizard({
                 className={cn(
                   'flex h-24 flex-col items-center justify-center gap-1 rounded-2xl border text-xl font-semibold transition-all active:scale-[0.98]',
                   category === value
-                    ? 'border-brand-400 bg-brand-400 text-ink-900'
+                    ? 'border-brand-500 bg-brand-500 text-ink-900'
                     : 'border-line bg-white text-ink-800 hover:border-brand-300 hover:bg-brand-50',
                 )}
               >
@@ -1410,7 +1410,7 @@ export function ServiceWizard({
                 className={cn(
                   'h-24 rounded-2xl border text-xl font-semibold transition-all active:scale-[0.98]',
                   mountKind === option.value
-                    ? 'border-brand-400 bg-brand-400 text-ink-900'
+                    ? 'border-brand-500 bg-brand-500 text-ink-900'
                     : 'border-line bg-white text-ink-800 hover:border-brand-300 hover:bg-brand-50',
                 )}
               >

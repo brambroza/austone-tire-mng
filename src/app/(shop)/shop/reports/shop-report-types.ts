@@ -65,7 +65,8 @@ export function summarizeShopRows(rows: ShopReportRow[]): ShopReportSummary {
   let unmountCount = 0
   let mountCount = 0
   for (const row of rows) {
-    vehicles.add(`${row.companyId}:${row.vehicleLabel}`)
+    // นับตาม id รถ — รถคนละคันอาจมีป้ายซ้ำกัน (เช่น ไม่มีทะเบียน / รถถูกลบ)
+    vehicles.add(row.vehicleId ?? `${row.companyId}:${row.vehicleLabel}`)
     companies.add(row.companyId)
     if (row.eventType === 'unmount') unmountCount++
     else mountCount++

@@ -14,7 +14,7 @@ const SECONDARY_LINK =
   'inline-flex min-h-12 items-center gap-2 rounded-xl border border-line bg-white px-4 text-[15px] font-medium text-ink-700 hover:bg-brand-50'
 
 const PRIMARY_LINK =
-  'inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-400 px-5 text-[15px] font-medium text-ink-900 hover:bg-brand-500'
+  'inline-flex min-h-12 items-center gap-2 rounded-xl bg-brand-500 px-5 text-[15px] font-medium text-ink-900 hover:bg-ink-900 hover:text-brand-500'
 
 /**
  * เมนู "ข้อมูลยางใหม่" (แอดมินบริษัท · Premium) — ประวัติการนำเข้าทุกรอบ (ไฟล์ / คีย์-สแกน)

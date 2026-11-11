@@ -38,7 +38,7 @@ const TONE_SOFT: Record<DashTone, string> = {
 }
 
 const TONE_SOLID: Record<DashTone, string> = {
-  brand: 'bg-brand-400 text-ink-900',
+  brand: 'bg-brand-500 text-ink-900',
   good: 'bg-emerald-600 text-white',
   info: 'bg-sky-600 text-white',
   warn: 'bg-orange-600 text-white',
@@ -56,7 +56,7 @@ export const TIRE_STATUS_CHIP: Record<TireDisplayStatus, { tone: DashTone; icon:
 }
 
 /** class สำหรับหัวตาราง — ใหญ่ขึ้น ไม่ uppercase สีเข้ม (override Th โดยไม่แก้ shared component) */
-export const TH_LG = 'text-[15px] font-bold normal-case tracking-normal text-ink-900 bg-surface-alt border-b-2 border-brand-200'
+export const TH_LG = 'text-[15px] font-bold normal-case tracking-normal text-ink-900 bg-brand-100 border-b-2 border-brand-500'
 /** class สำหรับเซลล์ตาราง — ตัวใหญ่ขึ้น แถวสูงขึ้น */
 export const TD_LG = 'py-4 text-base text-ink-700'
 

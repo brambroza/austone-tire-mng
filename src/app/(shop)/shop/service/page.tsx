@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { AlertTriangle, Building2, ChevronRight, Repeat } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
+import { SHOP_ROLES, isShopAdmin } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { loadServiceWizardData, loadShopGrantModels } from '@/lib/service-data'
 import { PageHeader } from '@/components/app-shell'
@@ -15,6 +16,7 @@ export const metadata = { title: 'บันทึกถอด-ใส่ยาง
 
 /**
  * หน้าบันทึกถอด-ใส่ยางของร้านค้า
+ * ใช้ได้ทั้งแอดมินร้านและช่างร้าน (ช่างร้านมีหน้านี้หน้าเดียว)
  * ไม่มี ?company= → ให้เลือกลูกค้าก่อน · มีแล้ว → เปิด wizard เดียวกับช่างของลูกค้า
  * แต่ใช้กฎร้านค้า: ใส่ได้เฉพาะรุ่นที่ Austone กำหนดให้ร้าน และถอดยางที่ไม่ทราบซีรีย์ได้
  */
@@ -23,7 +25,8 @@ export default async function ShopServicePage({
 }: {
   searchParams: Promise<{ company?: string; vehicle?: string }>
 }) {
-  const { profile } = await requireSession(['shop'])
+  const { profile } = await requireSession(SHOP_ROLES)
+  const canManageCustomers = isShopAdmin(profile.role)
   const { company: companyId, vehicle } = await searchParams
   const supabase = await createClient()
 
@@ -38,11 +41,13 @@ export default async function ShopServicePage({
             <EmptyState
               icon={<Building2 className="size-6" />}
               title="ยังไม่มีลูกค้า"
-              description="เพิ่มลูกค้าที่หน้า “ลูกค้า” ก่อน แล้วกลับมาบันทึกงาน"
+              description={canManageCustomers ? 'เพิ่มลูกค้าที่หน้า “ลูกค้า” ก่อน แล้วกลับมาบันทึกงาน' : 'ให้แอดมินร้านเพิ่มลูกค้าก่อน แล้วจึงบันทึกงานได้'}
               action={
-                <Link href="/shop" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand-400 px-4 text-[15px] font-medium text-ink-900 hover:bg-brand-500">
-                  ไปหน้าลูกค้า
-                </Link>
+                canManageCustomers ? (
+                  <Link href="/shop" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand-500 px-4 text-[15px] font-medium text-ink-900 hover:bg-ink-900 hover:text-brand-500">
+                    ไปหน้าลูกค้า
+                  </Link>
+                ) : undefined
               }
             />
           ) : (

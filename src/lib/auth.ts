@@ -8,7 +8,7 @@ export interface SessionContext {
   email: string | null
   profile: Profile
   company: Company | null
-  /** ร้านค้าที่สังกัด — มีค่าเฉพาะบัญชีร้านค้า (role = 'shop') */
+  /** ร้านค้าที่สังกัด — มีค่าเฉพาะบัญชีร้านค้า (role = 'shop' / 'shop_technician') */
   shop: Shop | null
 }
 
@@ -85,5 +85,6 @@ export function homePathFor(role: UserRole): string {
     case 'admin':       return '/dashboard'
     case 'technician':  return '/service'
     case 'shop':        return '/shop'
+    case 'shop_technician': return '/shop/service'
   }
 }

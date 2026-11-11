@@ -19,10 +19,12 @@ grant usage, select on sequence public.shop_code_seq to authenticated;
 -- ENUMS
 -- ------------------------------------------------------------
 do $$ begin
-  create type user_role as enum ('super_admin', 'austone_admin', 'sales', 'admin', 'technician', 'shop');
+  create type user_role as enum ('super_admin', 'austone_admin', 'sales', 'admin', 'technician', 'shop', 'shop_technician');
 exception when duplicate_object then null; end $$;
 -- โปรเจกต์เดิมที่มี enum อยู่แล้ว: เพิ่มค่า 'shop' (ร้านค้า) — migration 020
 alter type public.user_role add value if not exists 'shop';
+-- ช่างร้าน (บันทึกถอด-ใส่อย่างเดียว) — migration 026
+alter type public.user_role add value if not exists 'shop_technician';
 
 do $$ begin
   create type tire_status as enum ('in_stock', 'mounted', 'scrapped', 'retreading');
@@ -116,7 +118,7 @@ create table if not exists public.profiles (
   updated_at  timestamptz not null default now(),
   constraint profiles_tenant_check check (
     (role in ('super_admin', 'austone_admin', 'sales') and company_id is null and shop_id is null)
-    or (role = 'shop' and shop_id is not null and company_id is null)
+    or (role in ('shop', 'shop_technician') and shop_id is not null and company_id is null)
     or (role in ('admin', 'technician') and company_id is not null and shop_id is null)
   )
 );
@@ -433,7 +435,14 @@ returns uuid language sql stable security definer set search_path = public as $$
   select shop_id from public.profiles where id = auth.uid();
 $$;
 
+-- พนักงานร้านทุกระดับ (แอดมินร้าน + ช่างร้าน) — migration 027
 create or replace function public.is_shop_user()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select role in ('shop', 'shop_technician') from public.profiles where id = auth.uid()), false);
+$$;
+
+-- แอดมินร้านเท่านั้น (เพิ่ม/แก้ลูกค้าของร้าน) — migration 027
+create or replace function public.is_shop_admin()
 returns boolean language sql stable security definer set search_path = public as $$
   select coalesce((select role = 'shop' from public.profiles where id = auth.uid()), false);
 $$;
@@ -676,8 +685,8 @@ declare
   v_shop    uuid;
   v_company uuid;
 begin
-  if not public.is_shop_user() then
-    raise exception 'เฉพาะบัญชีร้านค้าเท่านั้นที่เพิ่มบริษัทลูกค้าของร้านได้' using errcode = '42501';
+  if not public.is_shop_admin() then
+    raise exception 'เฉพาะแอดมินร้านเท่านั้นที่เพิ่มลูกค้าของร้านได้' using errcode = '42501';
   end if;
   v_shop := public.current_shop_id();
   if v_shop is null then
@@ -994,11 +1003,11 @@ create policy companies_admin_update on public.companies for update to authentic
   using (is_company_admin() and id = current_company_id())
   with check (is_company_admin() and id = current_company_id());
 
--- ร้านค้าแก้ข้อมูลติดต่อของบริษัทภายใต้ร้านได้ แต่ย้ายไปร้านอื่นไม่ได้ (with check ล็อก shop_id) — migration 021
+-- แอดมินร้านแก้ข้อมูลติดต่อของบริษัทภายใต้ร้านได้ แต่ย้ายไปร้านอื่นไม่ได้ (with check ล็อก shop_id) — migration 021/027
 drop policy if exists companies_shop_update on public.companies;
 create policy companies_shop_update on public.companies for update to authenticated
-  using (is_shop_user() and shop_id = current_shop_id())
-  with check (is_shop_user() and shop_id = current_shop_id());
+  using (is_shop_admin() and shop_id = current_shop_id())
+  with check (is_shop_admin() and shop_id = current_shop_id());
 
 -- profiles --------------------------------------------------
 drop policy if exists profiles_select on public.profiles;
@@ -1017,11 +1026,11 @@ drop policy if exists profiles_super_write on public.profiles;
 create policy profiles_super_write on public.profiles for all to authenticated
   using (
     is_true_super_admin()
-    or (is_super_admin() and role in ('admin', 'technician', 'shop'))
+    or (is_super_admin() and role in ('admin', 'technician', 'shop', 'shop_technician'))
   )
   with check (
     is_true_super_admin()
-    or (is_super_admin() and role in ('admin', 'technician', 'shop'))
+    or (is_super_admin() and role in ('admin', 'technician', 'shop', 'shop_technician'))
   );
 
 -- admin จัดการช่างในบริษัทตัวเอง (ห้ามสร้าง super_admin)

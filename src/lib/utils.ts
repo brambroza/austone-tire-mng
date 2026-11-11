@@ -81,9 +81,16 @@ export function formatThaiDate(value: string | Date | null | undefined, withTime
   })
 }
 
-/** วันที่วันนี้ในรูปแบบ YYYY-MM-DD สำหรับ input[type=date] */
-export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
+/**
+ * วันที่วันนี้ในรูปแบบ YYYY-MM-DD ตามเวลาท้องถิ่นของเครื่อง สำหรับ input[type=date] และ event_date
+ * (ห้ามใช้ toISOString — เป็นเวลา UTC ทำให้ช่วง 00:00–06:59 น. ได้วันที่ของเมื่อวาน)
+ * @param now เวลาอ้างอิง (ส่งเองได้ตอนทดสอบ)
+ */
+export function todayISO(now: Date = new Date()): string {
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 /** จำนวนวันระหว่างสองวันที่ (อย่างน้อย 0) */

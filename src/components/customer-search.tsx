@@ -154,7 +154,7 @@ export function CustomerSearch<T extends CustomerSearchItem>({
         aria-activedescendant={open && matches[active] ? `${listId}-${matches[active].id}` : undefined}
         className={cn(
           'h-12 w-full rounded-xl border border-line bg-white pl-11 text-base text-ink-900',
-          'placeholder:text-ink-400 transition-colors hover:border-brand-200 focus:border-brand-400',
+          'placeholder:text-ink-400 transition-colors hover:border-brand-200 focus:border-brand-500',
           'focus:outline-none focus:ring-4 focus:ring-brand-100',
           showClear ? 'pr-12' : 'pr-3.5',
           pending && 'opacity-70',

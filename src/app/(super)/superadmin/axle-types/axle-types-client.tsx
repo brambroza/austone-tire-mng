@@ -341,7 +341,7 @@ export function AxleTypesClient({ axleTypes, readOnly = false }: { axleTypes: Ax
                   className={cn(
                     'h-12 flex-1 rounded-xl border text-base font-semibold transition-all active:scale-[0.98]',
                     form.category === value
-                      ? 'border-brand-400 bg-brand-400 text-ink-900'
+                      ? 'border-brand-500 bg-brand-500 text-ink-900'
                       : 'border-line bg-white text-ink-700 hover:border-brand-300 hover:bg-brand-50',
                   )}
                 >

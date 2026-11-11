@@ -40,3 +40,48 @@ test('ไม่มีตำแหน่ง = แถวเดี่ยวเส�
   const rows = pairTireChanges([ev('m1', 'mount', null), ev('u1', 'unmount', null)], byVehicle)
   assert.equal(rows.length, 2)
 })
+
+/* ---------- event บันทึกย้อนหลัง ---------- */
+import { BACKFILL_NOTE_PREFIX, hideBackfillEvents, isBackfillEvent } from '../src/lib/tire-change-rows.ts'
+
+const full = (id, event_type, position_code, tire_id, { odometer = 100000, distance_km = null, note = null, event_date = '2026-11-10' } = {}) =>
+  ({ id, event_type, position_code, tire_id, odometer, distance_km, note, event_date, vehicle_id: 'v1' })
+
+test('isBackfillEvent: ดูจากคำขึ้นต้นหมายเหตุ', () => {
+  assert.equal(isBackfillEvent(`${BACKFILL_NOTE_PREFIX} (ยางไม่มีข้อมูลในระบบ)`), true)
+  assert.equal(isBackfillEvent('ยางรั่ว'), false)
+  assert.equal(isBackfillEvent(null), false)
+})
+
+test('hideBackfillEvents: ตัด mount ย้อนหลังออก และระยะรอบนี้ที่ไม่รู้จริงเป็น null', () => {
+  const events = [
+    full('m-new', 'mount', 'FL', 'tNew'),
+    full('u-old', 'unmount', 'FL', 'tOld', { distance_km: 0 }),
+    full('m-old', 'mount', 'FL', 'tOld', { note: `${BACKFILL_NOTE_PREFIX} (ยางไม่มีข้อมูลในระบบ)` }),
+  ]
+  const kept = hideBackfillEvents(events)
+  assert.deepEqual(kept.map((e) => e.id), ['m-new', 'u-old'])
+  assert.equal(kept[1].distance_km, null)
+  // จับคู่แล้วเหลือ 1 แถว ถอดเก่า → ใส่ใหม่ ไม่ว่าลำดับ created_at จะมาแบบไหน
+  for (const order of [kept, [...kept].reverse()]) {
+    const rows = pairTireChanges(order, byVehicle)
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0].unmount.id, 'u-old')
+    assert.equal(rows[0].mount.id, 'm-new')
+  }
+})
+
+test('hideBackfillEvents: ช่างคีย์เลขไมล์ตอนใส่จริง → ระยะรอบนี้คงไว้', () => {
+  const events = [
+    full('u-old', 'unmount', 'FL', 'tOld', { odometer: 120000, distance_km: 20000 }),
+    full('m-old', 'mount', 'FL', 'tOld', { odometer: 100000, note: `${BACKFILL_NOTE_PREFIX} (ยางไม่มีข้อมูลในระบบ)` }),
+  ]
+  const kept = hideBackfillEvents(events)
+  assert.deepEqual(kept.map((e) => e.id), ['u-old'])
+  assert.equal(kept[0].distance_km, 20000)
+})
+
+test('hideBackfillEvents: ไม่มีรายการย้อนหลัง → คืนรายการเดิมครบ', () => {
+  const events = [full('m1', 'mount', 'FL', 't1'), full('u1', 'unmount', 'FR', 't2', { distance_km: 500 })]
+  assert.deepEqual(hideBackfillEvents(events), events)
+})

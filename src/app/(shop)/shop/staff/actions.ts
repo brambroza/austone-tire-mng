@@ -3,16 +3,19 @@
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { requireSession, type SessionContext } from '@/lib/auth'
+import { SHOP_ADMIN_ROLES, SHOP_STAFF_ASSIGNABLE_ROLES, isShopStaff } from '@/lib/roles'
 import { createAdminClient } from '@/lib/supabase/server'
 import { ActionResult, fail, optionalText, zodFail } from '@/lib/action-result'
 
 /**
- * ร้านค้าจัดการบัญชีช่าง/พนักงานของร้านตัวเอง (role = 'shop' ทุกคน)
+ * แอดมินร้าน (role = 'shop') จัดการบัญชีพนักงานของร้านตัวเอง — ทั้งแอดมินร้านและช่างร้าน (role = 'shop_technician')
  *
  * RLS ไม่เปิดให้บัญชีร้านเขียนตาราง profiles โดยตรง จึงทำผ่าน service role
  * และตรวจเองทุกครั้งว่าเป้าหมายอยู่ร้านเดียวกับผู้เรียก (`assertSameShop`)
- * พนักงานร้านทุกคนจัดการบัญชีร้านได้เท่ากัน — ถ้าต้องแยก "หัวหน้าร้าน" ต้องเพิ่ม role ภายหลัง
+ * ช่างร้านเข้าหน้านี้ไม่ได้ (requireSession(SHOP_ADMIN_ROLES) เด้งกลับหน้าบันทึกงาน)
  */
+
+const roleSchema = z.enum(SHOP_STAFF_ASSIGNABLE_ROLES, { message: 'กรุณาเลือกระดับสิทธิ์' })
 
 const createSchema = z.object({
   email: z.string().trim().email('อีเมลไม่ถูกต้อง'),
@@ -20,9 +23,11 @@ const createSchema = z.object({
   full_name: z.string().trim().min(1, 'กรุณากรอกชื่อ-นามสกุล').max(120),
   phone: optionalText,
   employee_no: optionalText,
+  /** ระดับสิทธิ์ — ค่าเริ่มต้นคือช่างร้าน (บันทึกถอด-ใส่อย่างเดียว) */
+  role: roleSchema.default('shop_technician'),
 })
 
-const updateSchema = createSchema.pick({ full_name: true, phone: true, employee_no: true })
+const updateSchema = createSchema.pick({ full_name: true, phone: true, employee_no: true, role: true })
 
 export type ShopStaffInput = z.input<typeof createSchema>
 export type ShopStaffUpdateInput = z.input<typeof updateSchema>
@@ -31,12 +36,12 @@ function revalidateStaff() {
   revalidatePath('/shop/staff')
 }
 
-/** session ของพนักงานร้านพร้อม shop_id ที่ยืนยันแล้ว */
+/** session ของแอดมินร้านพร้อม shop_id ที่ยืนยันแล้ว */
 async function requireShopSession(): Promise<
   | { ok: true; session: SessionContext; shopId: string }
   | { ok: false; error: string }
 > {
-  const session = await requireSession(['shop'])
+  const session = await requireSession(SHOP_ADMIN_ROLES)
   if (!session.profile.shop_id || !session.shop) return { ok: false, error: 'บัญชีนี้ยังไม่ได้ผูกกับร้านค้า' }
   return { ok: true, session, shopId: session.profile.shop_id }
 }
@@ -69,14 +74,14 @@ async function assertSameShop(
     .eq('id', parsedId.data)
     .maybeSingle()
   if (error) return { ok: false, error: error.message }
-  if (!data || data.role !== 'shop' || data.shop_id !== shopId) {
+  if (!data || !isShopStaff(data.role) || data.shop_id !== shopId) {
     return { ok: false, error: 'ไม่พบบัญชีนี้ในร้านของคุณ' }
   }
   return { ok: true, id: data.id }
 }
 
 /**
- * เพิ่มช่าง/พนักงานร้านใหม่ — สร้าง auth user แล้วผูก profile กับร้านของผู้เรียก
+ * เพิ่มช่าง/พนักงานร้านใหม่ — สร้าง auth user แล้วผูก profile กับร้านของผู้เรียก (ระดับสิทธิ์ตามที่เลือก)
  * @param input ข้อมูลบัญชี
  */
 export async function createShopStaff(input: ShopStaffInput): Promise<ActionResult> {
@@ -99,7 +104,7 @@ export async function createShopStaff(input: ShopStaffInput): Promise<ActionResu
     id: created.user.id,
     company_id: null,
     shop_id: scope.shopId,
-    role: 'shop',
+    role: parsed.data.role,
     full_name: parsed.data.full_name,
     phone: parsed.data.phone,
     employee_no: parsed.data.employee_no,
@@ -114,7 +119,8 @@ export async function createShopStaff(input: ShopStaffInput): Promise<ActionResu
 }
 
 /**
- * แก้ไขชื่อ เบอร์โทร รหัสพนักงาน ของพนักงานร้าน
+ * แก้ไขชื่อ เบอร์โทร รหัสพนักงาน และระดับสิทธิ์ของพนักงานร้าน
+ * เปลี่ยนระดับสิทธิ์ของตัวเองไม่ได้ (กันร้านไม่เหลือแอดมิน)
  * @param id รหัสผู้ใช้
  * @param input ข้อมูลที่แก้ไข
  */
@@ -123,6 +129,9 @@ export async function updateShopStaff(id: string, input: ShopStaffUpdateInput): 
   if (!scope.ok) return scope
   const parsed = updateSchema.safeParse(input)
   if (!parsed.success) return zodFail(parsed.error)
+  if (id === scope.session.userId && parsed.data.role !== scope.session.profile.role) {
+    return { ok: false, error: 'ไม่สามารถเปลี่ยนระดับสิทธิ์ของตัวเองได้', fieldErrors: { role: 'เปลี่ยนสิทธิ์ตัวเองไม่ได้' } }
+  }
 
   const admin = adminOrError()
   if (!admin) return { ok: false, error: 'ยังไม่ได้ตั้งค่า SUPABASE_SERVICE_ROLE_KEY จึงแก้ไขไม่ได้' }

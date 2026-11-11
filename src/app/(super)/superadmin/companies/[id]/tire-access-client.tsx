@@ -174,7 +174,7 @@ export function TireAccessClient({
                         <span
                           className={cn(
                             'flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors',
-                            active ? 'border-brand-400 bg-brand-400 text-ink-900' : 'border-slate-300',
+                            active ? 'border-brand-500 bg-brand-500 text-ink-900' : 'border-slate-300',
                           )}
                         >
                           {active && <Check className="size-3.5" />}

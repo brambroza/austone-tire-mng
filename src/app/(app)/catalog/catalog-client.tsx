@@ -224,7 +224,7 @@ export function CompanyCatalogClient({
               type="button"
               onClick={() => setFilterBrand('')}
               className={`tap-target flex w-full items-center justify-between rounded-xl px-3 text-left text-[15px] transition-colors ${
-                filterBrand === '' ? 'bg-brand-400 text-ink-900' : 'text-ink-700 hover:bg-brand-50'
+                filterBrand === '' ? 'bg-brand-500 text-ink-900' : 'text-ink-700 hover:bg-brand-50'
               }`}
             >
               ทั้งหมด
@@ -238,7 +238,7 @@ export function CompanyCatalogClient({
                     type="button"
                     onClick={() => setFilterBrand(b.id)}
                     className={`tap-target flex flex-1 items-center justify-between rounded-xl px-3 text-left text-[15px] transition-colors ${
-                      filterBrand === b.id ? 'bg-brand-400 text-ink-900' : 'text-ink-700 hover:bg-brand-50'
+                      filterBrand === b.id ? 'bg-brand-500 text-ink-900' : 'text-ink-700 hover:bg-brand-50'
                     }`}
                   >
                     <span className="truncate">

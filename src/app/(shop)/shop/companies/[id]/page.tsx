@@ -1,31 +1,41 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, Truck, Wrench } from 'lucide-react'
 import { requireSession } from '@/lib/auth'
+import { SHOP_ADMIN_ROLES } from '@/lib/roles'
 import { createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
+import { SearchInput } from '@/components/search-input'
 import { Card, CardHeader, EmptyState, Table, TableWrap, Td, Th } from '@/components/ui'
 import { ChangeSideCell, ChangeSideHeaders } from '@/components/tire-event-table'
-import { pairTireChanges, primaryEvent } from '@/lib/tire-change-rows'
+import { hideBackfillEvents, pairTireChanges, primaryEvent } from '@/lib/tire-change-rows'
 import { getLayout, positionLabel } from '@/lib/axle-layouts'
-import { vehicleLabel } from '@/lib/vehicle-display'
+import { matchesVehicle, vehicleLabel } from '@/lib/vehicle-display'
 import { formatKm, formatThaiDate } from '@/lib/utils'
-import { CompanyAccountsClient, CompanyEditButton } from './company-detail-client'
+import { CompanyEditButton } from './company-detail-client'
 import { CompanyPublicLinkCard } from './company-public-link'
 import { getAppBaseUrl } from '@/lib/app-url'
 import { SHOP_EVENT_SELECT, shopEventSide, type ShopEventRecord } from '../../shop-queries'
-import type { AxleType, Company, Profile, Vehicle } from '@/lib/database.types'
+import type { AxleType, Company, Vehicle } from '@/lib/database.types'
 
 export const metadata = { title: 'ลูกค้า · Austone Tire Shop' }
 
-/** รายละเอียดลูกค้า 1 ราย: รถที่เคยเข้าร้าน ประวัติเปลี่ยนยางล่าสุด และบัญชีผู้ใช้ของลูกค้า */
+/**
+ * รายละเอียดลูกค้า 1 ราย: รถที่เคยเข้าร้าน + ประวัติเปลี่ยนยางล่าสุด
+ * ค้นหาด้วย ?q= (ทะเบียน/ชื่อเรียก) — กรองทั้งตารางรถและประวัติ
+ */
 export default async function ShopCompanyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>
+  searchParams: Promise<{ q?: string }>
 }) {
-  const { userId } = await requireSession(['shop'])
+  await requireSession(SHOP_ADMIN_ROLES)
   const { id } = await params
+  const { q = '' } = await searchParams
+  const query = q.trim()
   const supabase = await createClient()
 
   // RLS คัดให้เหลือลูกค้าภายใต้ร้าน — ไม่พบ = ไม่ใช่ของร้านนี้
@@ -33,23 +43,31 @@ export default async function ShopCompanyPage({
   if (!companyData) notFound()
   const company = companyData as Company
 
-  const [{ data: vehicleData }, { data: eventData }, { data: profileData }, { data: axleTypeData }] =
+  const [{ data: vehicleData }, { data: eventData }, { data: axleTypeData }] =
     await Promise.all([
       supabase.from('vehicles').select('*').eq('company_id', id).eq('is_active', true)
         .order('plate_no', { nullsFirst: false }).order('nickname'),
       supabase.from('tire_events').select(SHOP_EVENT_SELECT).eq('company_id', id)
         .order('event_date', { ascending: false }).order('created_at', { ascending: false }).limit(60),
-      supabase.from('profiles').select('*').eq('company_id', id).order('role').order('full_name'),
       supabase.from('axle_types').select('*').order('sort_order'),
     ])
 
   const baseUrl = await getAppBaseUrl()
   const vehicles = (vehicleData ?? []) as Vehicle[]
-  const events = (eventData ?? []) as unknown as ShopEventRecord[]
-  const profiles = (profileData ?? []) as Profile[]
+  // ตัด event ใส่ยางย้อนหลังที่ระบบแทรกให้ — ไม่ใช่งานที่ร้านทำ (ดู hideBackfillEvents)
+  const events = hideBackfillEvents((eventData ?? []) as unknown as ShopEventRecord[])
   const axleTypes = (axleTypeData ?? []) as AxleType[]
   // งานเปลี่ยนยาง (ถอด+ใส่ ตำแหน่งเดียวกัน วันเดียวกัน) แสดงเป็นแถวเดียว
   const changeRows = pairTireChanges(events, (e) => e.vehicles?.id)
+
+  // กรองตามคำค้น — ใช้เงื่อนไขเดียวกันทั้งตารางรถและประวัติ
+  const filteredVehicles = query ? vehicles.filter((v) => matchesVehicle(v, query)) : vehicles
+  const filteredRows = query
+    ? changeRows.filter((row) => {
+        const vehicle = primaryEvent(row).vehicles
+        return Boolean(vehicle && matchesVehicle(vehicle, query))
+      })
+    : changeRows
 
   /** วันที่เปลี่ยนยางล่าสุดของแต่ละคัน (จาก 60 รายการล่าสุด) */
   const lastEventByVehicle = new Map<string, string>()
@@ -73,7 +91,7 @@ export default async function ShopCompanyPage({
             <CompanyEditButton company={company} />
             <Link
               href={`/shop/service?company=${company.id}`}
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand-400 px-4 text-[15px] font-medium text-ink-900 hover:bg-brand-500"
+              className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand-500 px-4 text-[15px] font-medium text-ink-900 hover:bg-ink-900 hover:text-brand-500"
             >
               <Wrench className="size-4.5" />
               บันทึกถอด-ใส่ยาง
@@ -93,10 +111,23 @@ export default async function ShopCompanyPage({
         <Card>
           <CardHeader
             title="รถของลูกค้า"
-            description={`${vehicles.length} คัน — รถใหม่เพิ่มได้ตอนบันทึกงาน (คีย์ทะเบียนหรือชื่อเรียก)`}
+            description={
+              query
+                ? `พบ ${filteredVehicles.length} จาก ${vehicles.length} คัน`
+                : `${vehicles.length} คัน — รถใหม่เพิ่มได้ตอนบันทึกงาน (คีย์ทะเบียนหรือชื่อเรียก)`
+            }
           />
+          {vehicles.length > 0 && (
+            <div className="border-b border-line px-5 py-3">
+              <Suspense fallback={null}>
+                <SearchInput placeholder="ค้นหาทะเบียน หรือชื่อเรียกรถ..." className="sm:max-w-md" />
+              </Suspense>
+            </div>
+          )}
           {vehicles.length === 0 ? (
             <EmptyState icon={<Truck className="size-6" />} title="ยังไม่มีรถ" description="รถจะถูกเพิ่มอัตโนมัติเมื่อบันทึกการเปลี่ยนยางครั้งแรก" />
+          ) : filteredVehicles.length === 0 ? (
+            <EmptyState icon={<Truck className="size-6" />} title={`ไม่พบรถที่ตรงกับ "${query}"`} description="ลองค้นด้วยทะเบียนบางส่วน หรือล้างคำค้นหา" />
           ) : (
             <TableWrap>
               <Table className="min-w-[720px]">
@@ -110,7 +141,7 @@ export default async function ShopCompanyPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {vehicles.map((v) => {
+                  {filteredVehicles.map((v) => {
                     const layout = getLayout(v.axle_type, axleTypes)
                     return (
                       <tr key={v.id} className="transition-colors hover:bg-brand-50/40">
@@ -146,7 +177,11 @@ export default async function ShopCompanyPage({
         <Card>
           <CardHeader
             title="ประวัติถอด-ใส่ยางล่าสุด"
-            description="60 รายการล่าสุด — ดูทั้งหมดและส่งออกได้ที่เมนูรายงาน"
+            description={
+              query
+                ? `กรองตามคำค้น "${query}" — ${filteredRows.length} รายการ จาก 60 รายการล่าสุด`
+                : '60 รายการล่าสุด — ดูทั้งหมดและส่งออกได้ที่เมนูรายงาน'
+            }
             action={
               <Link href={`/shop/reports?company=${company.id}`} className="text-sm font-medium text-brand-600 hover:underline">
                 ดูรายงานทั้งหมด
@@ -155,6 +190,8 @@ export default async function ShopCompanyPage({
           />
           {events.length === 0 ? (
             <EmptyState title="ยังไม่มีประวัติการเปลี่ยนยาง" />
+          ) : filteredRows.length === 0 ? (
+            <EmptyState title={`ไม่พบประวัติของรถที่ตรงกับ "${query}"`} />
           ) : (
             <TableWrap>
               <Table className="min-w-[960px]">
@@ -168,7 +205,7 @@ export default async function ShopCompanyPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {changeRows.map((row) => {
+                  {filteredRows.map((row) => {
                     const main = primaryEvent(row)
                     return (
                       <tr key={row.key} className="hover:bg-brand-50/40">
@@ -190,7 +227,7 @@ export default async function ShopCompanyPage({
           )}
         </Card>
 
-        <CompanyAccountsClient companyId={company.id} users={profiles} currentUserId={userId} />
+        {/* บัญชีผู้ใช้ของลูกค้า (CompanyAccountsClient ใน company-detail-client.tsx) ปิดไว้ก่อน — เปิดเมื่อพร้อมให้ร้านสร้างบัญชีให้ลูกค้า */}
       </div>
     </>
   )

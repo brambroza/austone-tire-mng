@@ -13,6 +13,7 @@ import { ensureBrandModelFor, insertStockTire, resolveModelSnapshot } from '@/li
 import { isOtherBrand } from '@/lib/tire-import'
 import { SHOP_MOUNT_GRANT_MESSAGE, generateUnknownSerial, tireMatchesGrant, type ShopGrantTire } from '@/lib/shop-rules'
 import { loadShopMountGrant } from '@/lib/service-data'
+import { BACKFILL_NOTE_PREFIX } from '@/lib/tire-change-rows'
 import {
   ODOMETER_DIGITS, ODOMETER_MAX, ODOMETER_MAX_MESSAGE,
   SERIAL_MAX, SERIAL_PATTERN, SERIAL_PATTERN_MESSAGE,
@@ -180,7 +181,7 @@ export async function unmountManualTireAction(input: ManualUnmountInput): Promis
     p_position_code: data.position_code,
     p_odometer: mountedOdometer,
     p_tread_mm: null,
-    p_note: 'บันทึกย้อนหลัง (ยางไม่มีข้อมูลในระบบ)',
+    p_note: `${BACKFILL_NOTE_PREFIX} (ยางไม่มีข้อมูลในระบบ)`,
     p_event_date: data.event_date,
   })
   if (mountError) {
@@ -441,7 +442,7 @@ export async function applyServiceBatchAction(
             tire_id: existingTire.id,
             position_code: item.position_code,
             odometer: mountedOdometer,
-            note: 'บันทึกย้อนหลัง (ระบบไม่มีข้อมูลว่ายางเส้นนี้อยู่ที่ล้อนี้)',
+            note: `${BACKFILL_NOTE_PREFIX} (ระบบไม่มีข้อมูลว่ายางเส้นนี้อยู่ที่ล้อนี้)`,
           })
         }
         unmounts.push({
@@ -492,7 +493,7 @@ export async function applyServiceBatchAction(
         tire_id: tireId,
         position_code: item.position_code,
         odometer: mountedOdometer,
-        note: 'บันทึกย้อนหลัง (ยางไม่มีข้อมูลในระบบ)',
+        note: `${BACKFILL_NOTE_PREFIX} (ยางไม่มีข้อมูลในระบบ)`,
       })
       unmounts.push({
         op: 'unmount',

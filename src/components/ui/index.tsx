@@ -1,5 +1,5 @@
 /**
- * UI primitives — modern minimal โทนฟ้าอ่อน
+ * UI primitives — โทนแบรนด์ Austone (เหลือง #F5E907 + ดำถ่าน)
  * ทุก control ออกแบบให้กดง่ายบน iPad (min-height 44px)
  */
 import * as React from 'react'
@@ -51,11 +51,12 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success'
 type ButtonSize = 'sm' | 'md' | 'lg'
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
+  // เหลือง Austone ตัวอักษรดำ — hover สลับเป็นดำตัวอักษรเหลืองตามคู่สีแบรนด์
   primary:
-    'bg-brand-400 text-ink-900 hover:bg-brand-500 active:bg-brand-500 shadow-[0_6px_16px_-8px_rgba(245,233,7,0.6)]',
+    'bg-brand-500 text-ink-900 hover:bg-ink-900 hover:text-brand-500 active:bg-ink-800 active:text-brand-500 shadow-[0_8px_18px_-8px_rgba(47,46,46,0.45)]',
   secondary:
-    'bg-white text-ink-700 border border-line hover:bg-brand-50 hover:border-brand-200 active:bg-brand-100',
-  ghost: 'text-ink-700 hover:bg-brand-50 active:bg-brand-100',
+    'bg-white text-ink-900 border-2 border-ink-900/15 hover:border-ink-900 hover:bg-brand-50 active:bg-brand-100',
+  ghost: 'text-ink-700 hover:bg-brand-100 active:bg-brand-200',
   danger: 'bg-rose-600 text-white hover:bg-rose-700 active:bg-rose-800',
   success: 'bg-emerald-600 text-white hover:bg-emerald-700 active:bg-emerald-800',
 }
@@ -118,7 +119,7 @@ export function Label({ className, ...props }: React.ComponentProps<'label'>) {
 const FIELD_BASE =
   'w-full rounded-xl border border-line bg-white px-3.5 text-base text-ink-900 ' +
   'placeholder:text-ink-400 transition-colors ' +
-  'hover:border-brand-200 focus:border-brand-400 focus:outline-none ' +
+  'hover:border-brand-200 focus:border-brand-500 focus:outline-none ' +
   'focus:ring-4 focus:ring-brand-100 disabled:bg-slate-50 disabled:text-ink-400'
 
 export function Input({ className, ...props }: React.ComponentProps<'input'>) {
@@ -192,7 +193,7 @@ const TONE: Record<Tone, string> = {
   rose: 'bg-rose-100 text-rose-800 ring-rose-300',
   amber: 'bg-amber-100 text-amber-800 ring-amber-300',
   slate: 'bg-slate-100 text-slate-700 ring-slate-300',
-  brand: 'bg-brand-100 text-brand-800 ring-brand-300',
+  brand: 'bg-brand-500 text-ink-900 ring-ink-900/15',
 }
 
 export function Badge({
@@ -258,7 +259,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
       {icon && (
-        <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-500">
+        <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-ink-900 text-brand-500">
           {icon}
         </div>
       )}
@@ -283,8 +284,8 @@ export function Th({ className, ...props }: React.ComponentProps<'th'>) {
   return (
     <th
       className={cn(
-        'whitespace-nowrap border-b border-line bg-brand-50/50 px-4 py-3.5',
-        'text-xs font-semibold tracking-wide text-ink-500 uppercase',
+        'whitespace-nowrap border-b-2 border-brand-500 bg-brand-100 px-4 py-3.5',
+        'text-xs font-bold tracking-wide text-ink-900 uppercase',
         className,
       )}
       {...props}

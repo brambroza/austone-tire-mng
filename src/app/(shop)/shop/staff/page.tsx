@@ -1,4 +1,5 @@
 import { requireSession } from '@/lib/auth'
+import { SHOP_ADMIN_ROLES } from '@/lib/roles'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { PageHeader } from '@/components/app-shell'
 import { ShopStaffClient, type ShopStaffRow } from './shop-staff-client'
@@ -11,7 +12,7 @@ export const metadata = { title: 'ช่างของร้าน · Austone T
  * อีเมลเข้าระบบอยู่ใน auth.users จึงดึงผ่าน service role (ถ้าตั้งค่าไว้) เพื่อให้ร้านบอกช่างได้ว่าใช้อีเมลไหน
  */
 export default async function ShopStaffPage() {
-  const { userId, shop, profile } = await requireSession(['shop'])
+  const { userId, shop, profile } = await requireSession(SHOP_ADMIN_ROLES)
   const supabase = await createClient()
 
   const { data } = await supabase

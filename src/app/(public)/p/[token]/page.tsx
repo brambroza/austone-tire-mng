@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowDownToLine, ArrowUpFromLine, CircleDot, Phone, Repeat, Truck } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, Phone, Repeat, Truck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { isPublicTokenFormat } from '@/lib/public-link'
 import { getLayout, positionLabel, type AxleTypeLayoutSource } from '@/lib/axle-layouts'
@@ -9,6 +9,7 @@ import { isUnknownSerial } from '@/lib/shop-rules'
 import { pairTireChanges, primaryEvent } from '@/lib/tire-change-rows'
 import { formatKm, formatNumber, formatThaiDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { BrandLogo, BrandMascot } from '@/components/brand'
 
 export const metadata = { title: 'ประวัติการเปลี่ยนยาง · Austone Tire' }
 
@@ -50,8 +51,9 @@ interface PublicHistory {
 function InvalidLink() {
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
-      <span className="flex size-14 items-center justify-center rounded-2xl bg-white text-brand-600 shadow-sm ring-1 ring-line">
-        <CircleDot className="size-7" />
+      <BrandMascot size={150} priority className="drop-shadow-[0_14px_20px_rgba(0,0,0,0.25)]" />
+      <span className="mt-4 flex items-center justify-center rounded-2xl bg-ink-900 px-5 py-3 shadow-sm">
+        <BrandLogo width={150} priority />
       </span>
       <h1 className="mt-6 text-xl font-semibold">ลิงก์นี้ใช้ไม่ได้</h1>
       <p className="mt-2 text-[15px] leading-relaxed text-ink-500">
@@ -101,8 +103,9 @@ export default async function PublicHistoryPage({
   return (
     <div className="mx-auto w-full max-w-4xl px-4 pb-16 pt-6 sm:px-6">
       {/* หัวเรื่อง */}
-      <header className="rounded-2xl bg-ink-900 p-5 text-white shadow-sm sm:p-7">
-        <p className="text-xs font-medium uppercase tracking-wider text-brand-200/80">ประวัติการเปลี่ยนยาง</p>
+      <header className="rounded-2xl border-b-4 border-brand-500 bg-ink-900 p-5 text-white shadow-sm sm:p-7">
+        <BrandLogo lockup width={210} priority />
+        <p className="mt-4 text-xs font-bold uppercase tracking-wider text-brand-500">ประวัติการเปลี่ยนยาง</p>
         <h1 className="mt-1.5 text-2xl font-semibold leading-tight sm:text-3xl">{history.company.name}</h1>
         <p className="mt-1 text-sm text-white/60">รหัสลูกค้า {history.company.code}</p>
         {history.shop && (
@@ -220,7 +223,7 @@ export default async function PublicHistoryPage({
       <footer className="mt-10 text-center text-xs text-ink-400">
         ข้อมูล ณ {formatThaiDate(history.generated_at, true)} · ลิงก์นี้เป็นลิงก์ส่วนตัวของบริษัท กรุณาอย่าส่งต่อ
         <br />
-        Austone Tire
+        Austone Thailand · Austone Tire
       </footer>
     </div>
   )
@@ -267,11 +270,11 @@ function Chip({ href, active, label, count }: { href: string; active: boolean; l
       scroll={false}
       className={cn(
         'inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors',
-        active ? 'border-brand-400 bg-brand-400 text-ink-900' : 'border-line bg-white text-ink-700 hover:border-brand-300',
+        active ? 'border-ink-900 bg-ink-900 text-brand-500' : 'border-line bg-white text-ink-700 hover:border-ink-900',
       )}
     >
       {label}
-      <span className={cn('rounded-full px-1.5 text-xs', active ? 'bg-white/20' : 'bg-brand-50 text-brand-700')}>{count}</span>
+      <span className={cn('rounded-full px-1.5 text-xs', active ? 'bg-brand-500 text-ink-900' : 'bg-brand-100 text-ink-900')}>{count}</span>
     </Link>
   )
 }
