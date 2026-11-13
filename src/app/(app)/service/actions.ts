@@ -14,6 +14,7 @@ import { isOtherBrand } from '@/lib/tire-import'
 import { SHOP_MOUNT_GRANT_MESSAGE, generateUnknownSerial, tireMatchesGrant, type ShopGrantTire } from '@/lib/shop-rules'
 import { loadShopMountGrant } from '@/lib/service-data'
 import { BACKFILL_NOTE_PREFIX } from '@/lib/tire-change-rows'
+import { planServiceVehicle, type ServiceVehiclePlan } from '@/lib/service-vehicle'
 import {
   ODOMETER_DIGITS, ODOMETER_MAX, ODOMETER_MAX_MESSAGE,
   SERIAL_MAX, SERIAL_PATTERN, SERIAL_PATTERN_MESSAGE,
@@ -255,6 +256,219 @@ const manualTireSchema = z.object({
   }
 })
 
+/* ============================================================
+ * หน้าช่าง: คีย์ทะเบียนแล้วเริ่มงานได้เลย
+ *
+ * รถที่ยังไม่มีในระบบ (หรือการเปลี่ยนแบบรถ) จะยังไม่ถูกบันทึกจนกว่าช่างกดยืนยันบันทึกงานยาง
+ * ระหว่างกรอกใช้ checkServiceVehicleAction ตรวจล่วงหน้าได้โดยไม่เขียนฐานข้อมูล
+ * ============================================================ */
+
+/** รถจากหน้าช่าง: ต้องมีทะเบียน (ตามรูปแบบมาตรฐาน + จังหวัด) หรือชื่อเรียกอย่างใดอย่างหนึ่ง · เลือกรถเดิมด้วย vehicle_id ไม่ต้องตรวจ */
+const serviceVehicleSchema = z.object({
+  vehicle_id: z.string().uuid().optional(),
+  ...vehicleIdentityFields,
+  axle_type: z.string().trim().min(1, 'กรุณาเลือกประเภทรถ').max(30),
+}).superRefine((data, ctx) => {
+  if (!data.vehicle_id) refineVehicleIdentity(true)(data, ctx)
+}).transform(normalizeVehicleIdentity)
+
+/** ตรวจรถล่วงหน้า (ไม่บันทึก) */
+const serviceVehicleCheckSchema = z.object({
+  /** ลูกค้าที่ร้านค้าเลือก — แอดมิน/ช่างไม่ต้องส่ง */
+  company_id: z.string().uuid().optional(),
+  vehicle: serviceVehicleSchema,
+})
+
+export type ServiceVehicleInput = z.input<typeof serviceVehicleSchema>
+export type ServiceVehicleCheckInput = z.input<typeof serviceVehicleCheckSchema>
+type ServiceVehicleData = z.output<typeof serviceVehicleSchema>
+type SupabaseServer = Awaited<ReturnType<typeof createClient>>
+
+const VEHICLE_COLUMNS = 'id, plate_no, nickname, province, axle_type, current_mileage, is_active'
+
+interface ServiceVehicleRow {
+  id: string
+  plate_no: string | null
+  nickname: string | null
+  province: string | null
+  axle_type: string
+  current_mileage: number
+  is_active: boolean
+}
+
+export interface ServiceVehicleCheckResult {
+  /** รถเดิมในระบบ · null = ยังไม่มี ระบบจะสร้างให้ตอนยืนยันบันทึก */
+  vehicle: Omit<ServiceVehicleRow, 'is_active'> | null
+  /** แบบรถที่จะใช้ */
+  axle_type: string
+}
+
+/** รถที่หาเจอ + สิ่งที่ต้องทำตอนยืนยันบันทึก (ยังไม่เขียนอะไรลงฐานข้อมูล) */
+interface ResolvedServiceVehicle {
+  existing: ServiceVehicleRow | null
+  plan: Exclude<ServiceVehiclePlan, { kind: 'error' }>
+}
+
+/**
+ * หารถจากรหัส ทะเบียน+จังหวัด หรือชื่อเรียก แล้วตัดสินว่าต้องสร้าง/ใช้ตามเดิม/เปลี่ยนแบบรถ — อ่านอย่างเดียว
+ * @param supabase client ของผู้ใช้ (ผ่าน RLS)
+ * @param companyId บริษัทเจ้าของรถ
+ * @param data รถที่ช่างเลือกหรือคีย์ พร้อมแบบรถ
+ */
+async function resolveServiceVehicle(
+  supabase: SupabaseServer,
+  companyId: string,
+  data: ServiceVehicleData,
+): Promise<ActionResult<ResolvedServiceVehicle>> {
+  const { data: axleType, error: axleTypeError } = await supabase
+    .from('axle_types')
+    .select('code, is_active')
+    .eq('code', data.axle_type)
+    .maybeSingle()
+  if (axleTypeError) return fail(axleTypeError)
+  if (!axleType?.is_active) {
+    return { ok: false, error: 'ประเภทรถนี้ถูกปิดใช้งานแล้ว — แจ้งแอดมินเพื่อเปิดใช้งาน' }
+  }
+
+  let vehicleQuery = supabase.from('vehicles')
+    .select(VEHICLE_COLUMNS)
+    .eq('company_id', companyId)
+  if (data.vehicle_id) {
+    vehicleQuery = vehicleQuery.eq('id', data.vehicle_id)
+  } else if (data.plate_no) {
+    vehicleQuery = vehicleQuery.eq('plate_no', data.plate_no).eq('province', data.province ?? '')
+  } else {
+    // รถไม่มีทะเบียน: ชื่อเรียกไม่ซ้ำกันในบริษัท (ไม่สนตัวพิมพ์เล็ก–ใหญ่) — escape อักขระพิเศษของ LIKE
+    const literal = (data.nickname ?? '').replace(/[\\%_]/g, '\\$&')
+    vehicleQuery = vehicleQuery.is('plate_no', null).ilike('nickname', literal)
+  }
+  const { data: existing, error: findError } = await vehicleQuery.maybeSingle<ServiceVehicleRow>()
+  if (findError) return fail(findError)
+
+  let mountedCount = 0
+  if (existing && existing.is_active && existing.axle_type !== data.axle_type) {
+    const { count, error: countError } = await supabase
+      .from('tires')
+      .select('id', { count: 'exact', head: true })
+      .eq('vehicle_id', existing.id)
+      .eq('status', 'mounted')
+    if (countError) return fail(countError)
+    mountedCount = count ?? 0
+  }
+
+  const plan = planServiceVehicle({
+    requestedVehicleId: data.vehicle_id,
+    existing,
+    axleType: data.axle_type,
+    mountedCount,
+  })
+  if (plan.kind === 'error') return { ok: false, error: plan.error }
+  return { ok: true, data: { existing, plan } }
+}
+
+/**
+ * บันทึกรถตามแผน (สร้างใหม่ / เปลี่ยนแบบรถ) — เรียกตอนยืนยันบันทึกงานยางเท่านั้น
+ * @returns รหัสรถ และฟังก์ชันคืนค่าเดิม ใช้เมื่อบันทึกงานยางไม่สำเร็จ
+ */
+async function commitServiceVehicle(
+  supabase: SupabaseServer,
+  companyId: string,
+  data: ServiceVehicleData,
+  resolved: ResolvedServiceVehicle,
+): Promise<ActionResult<{ id: string; undo: () => Promise<void> }>> {
+  const { existing, plan } = resolved
+
+  if (plan.kind === 'create') {
+    const { data: created, error: createError } = await supabase
+      .from('vehicles')
+      .insert({
+        company_id: companyId,
+        plate_no: data.plate_no,
+        nickname: data.nickname,
+        province: data.province,
+        axle_type: data.axle_type,
+        current_mileage: 0,
+      })
+      .select('id')
+      .single()
+    if (createError) {
+      const duplicate = vehicleUniqueViolation(createError)
+      if (duplicate) return { ok: false, error: `${duplicate.error} — ลองค้นหาใหม่อีกครั้ง` }
+      return fail(createError)
+    }
+    return {
+      ok: true,
+      data: {
+        id: created.id,
+        undo: async () => {
+          await supabase.from('vehicles').delete().eq('id', created.id)
+        },
+      },
+    }
+  }
+
+  const vehicleId = existing!.id
+  if (plan.kind === 'change_type') {
+    const { error: updateError } = await supabase
+      .from('vehicles')
+      .update({ axle_type: data.axle_type })
+      .eq('id', vehicleId)
+    if (updateError) return fail(updateError)
+    return {
+      ok: true,
+      data: {
+        id: vehicleId,
+        undo: async () => {
+          await supabase.from('vehicles').update({ axle_type: plan.previousAxleType }).eq('id', vehicleId)
+        },
+      },
+    }
+  }
+
+  return { ok: true, data: { id: vehicleId, undo: async () => {} } }
+}
+
+/**
+ * ตรวจรถที่ช่างเลือก/คีย์หน้างานกับแบบรถที่เลือก โดยไม่บันทึกอะไร
+ *
+ * ช่างทำงานกับรถที่แอดมินยังไม่ได้บันทึกไว้ได้ — รถใหม่จะถูกสร้างตอนยืนยันบันทึกงานยาง
+ * (applyServiceBatchAction) ถ้าออกจากหน้ากลางทาง จะไม่มีรถค้างในระบบ
+ *
+ * @param input บริษัท (ร้านค้า) + รหัสรถเดิม หรือทะเบียน+จังหวัด หรือชื่อเรียก พร้อมแบบรถ
+ */
+export async function checkServiceVehicleAction(
+  input: ServiceVehicleCheckInput,
+): Promise<ActionResult<ServiceVehicleCheckResult>> {
+  const parsed = serviceVehicleCheckSchema.safeParse(input)
+  if (!parsed.success) return zodFail(parsed.error)
+
+  // แอดมิน/ช่าง = บริษัทตัวเอง · ร้านค้า = ลูกค้าที่เลือก (ต้องอยู่ภายใต้ร้าน)
+  const scope = await resolveServiceScope(parsed.data.company_id)
+  if (!scope.ok) return scope
+
+  const supabase = await createClient()
+  const resolved = await resolveServiceVehicle(supabase, scope.companyId, parsed.data.vehicle)
+  if (!resolved.ok) return resolved
+
+  const existing = resolved.data!.existing
+  return {
+    ok: true,
+    data: {
+      vehicle: existing
+        ? {
+            id: existing.id,
+            plate_no: existing.plate_no,
+            nickname: existing.nickname,
+            province: existing.province,
+            axle_type: existing.axle_type,
+            current_mileage: existing.current_mileage,
+          }
+        : null,
+      axle_type: parsed.data.vehicle.axle_type,
+    },
+  }
+}
+
 const batchItemSchema = z.object({
   kind: z.enum(['unmount', 'mount', 'manual_unmount', 'manual_mount']),
   tire_id: optionalText,
@@ -271,10 +485,16 @@ const batchItemSchema = z.object({
 const batchSchema = z.object({
   /** ลูกค้าที่ร้านค้าเลือก — แอดมิน/ช่างไม่ต้องส่ง (ใช้บริษัทตัวเองเสมอ) */
   company_id: z.string().uuid().optional(),
-  vehicle_id: z.string().uuid(),
+  /** รถเดิมที่ไม่ต้องแก้อะไร */
+  vehicle_id: z.string().uuid().optional(),
+  /** รถที่ช่างคีย์/เปลี่ยนแบบรถหน้างาน — สร้างหรือแก้ตอนบันทึกนี้ (ส่งอย่างใดอย่างหนึ่งกับ vehicle_id) */
+  vehicle: serviceVehicleSchema.optional(),
   odometer: odometerSchema,
   event_date: z.string().min(1),
   items: z.array(batchItemSchema).min(1, 'กรุณาเพิ่มอย่างน้อย 1 รายการ').max(60),
+}).refine((data) => Boolean(data.vehicle_id) !== Boolean(data.vehicle), {
+  message: 'กรุณาเลือกรถ',
+  path: ['vehicle_id'],
 })
 
 export type ServiceBatchItem = z.input<typeof batchItemSchema>
@@ -301,6 +521,9 @@ interface TireOp {
  *
  * ทั้งหมดรันใน RPC เดียว = ทรานแซกชันเดียว ถ้าพลาดรายการใดจะ rollback ทั้งชุด
  *
+ * รถที่ช่างคีย์ใหม่ (หรือเปลี่ยนแบบรถ) ส่งมาเป็น input.vehicle — ระบบบันทึกรถก่อนเรียก RPC
+ * และคืนค่าเดิม (ลบรถใหม่ / คืนแบบรถเดิม) ถ้าบันทึกงานยางไม่สำเร็จ
+ *
  * @param input รถ เลขไมล์ วันที่ และรายการงานทั้งหมด
  * @returns จำนวนรายการที่บันทึก
  */
@@ -314,10 +537,21 @@ export async function applyServiceBatchAction(
   const scope = await resolveServiceScope(parsed.data.company_id)
   if (!scope.ok) return scope
 
-  const { vehicle_id, odometer, event_date, items } = parsed.data
+  const { odometer, event_date, items } = parsed.data
   const supabase = await createClient()
   /** บริษัทเจ้าของรถ/ยาง — ยางที่ช่างคีย์หน้างานสร้างได้ทุกแพ็กเกจ */
   const companyId = scope.companyId
+
+  /** รถที่ช่างคีย์/เปลี่ยนแบบรถหน้างาน — ยังไม่บันทึก จะบันทึกก่อนเรียก RPC */
+  let pendingVehicle: ResolvedServiceVehicle | null = null
+  /** รหัสรถ · null = รถใหม่ที่ยังไม่ได้สร้าง (จึงยังไม่มียางเส้นใดติดอยู่) */
+  let vehicle_id: string | null = parsed.data.vehicle_id ?? null
+  if (parsed.data.vehicle) {
+    const resolved = await resolveServiceVehicle(supabase, companyId, parsed.data.vehicle)
+    if (!resolved.ok) return resolved
+    pendingVehicle = resolved.data!
+    vehicle_id = pendingVehicle.existing?.id ?? null
+  }
   /** กฎร้านค้า: ใส่ได้เฉพาะรุ่นที่ Austone กำหนดให้ร้าน (ยางที่ถอดออกเป็นยี่ห้อใดก็ได้) */
   const shopRules = scope.isShop
   const shopGrant = shopRules && scope.session.profile.shop_id
@@ -325,16 +559,19 @@ export async function applyServiceBatchAction(
     : null
 
   // รถต้องเป็นของบริษัทนี้จริง — ร้านค้าเห็นรถหลายบริษัท จึงกันส่ง vehicle_id ข้ามบริษัท
-  const { data: vehicleRow, error: vehicleError } = await supabase
-    .from('vehicles')
-    .select('id, company_id, is_active')
-    .eq('id', vehicle_id)
-    .maybeSingle()
-  if (vehicleError) return fail(vehicleError)
-  if (!vehicleRow || vehicleRow.company_id !== companyId) {
-    return { ok: false, error: 'ไม่พบรถคันนี้ในบริษัทที่เลือก' }
+  // (รถจาก input.vehicle ตรวจบริษัท/สถานะใน resolveServiceVehicle แล้ว)
+  if (!pendingVehicle) {
+    const { data: vehicleRow, error: vehicleError } = await supabase
+      .from('vehicles')
+      .select('id, company_id, is_active')
+      .eq('id', vehicle_id!)
+      .maybeSingle()
+    if (vehicleError) return fail(vehicleError)
+    if (!vehicleRow || vehicleRow.company_id !== companyId) {
+      return { ok: false, error: 'ไม่พบรถคันนี้ในบริษัทที่เลือก' }
+    }
+    if (!vehicleRow.is_active) return { ok: false, error: 'รถคันนี้ถูกปิดใช้งานแล้ว' }
   }
-  if (!vehicleRow.is_active) return { ok: false, error: 'รถคันนี้ถูกปิดใช้งานแล้ว' }
 
   /**
    * ตรวจว่ายาง/รุ่นที่จะใส่อยู่ในสิทธิ์ที่ Austone กำหนดให้ร้าน (เฉพาะเมื่อผู้บันทึกเป็นร้านค้า)
@@ -688,152 +925,32 @@ export async function applyServiceBatchAction(
 
   const ops = [...preMounts, ...unmounts, ...mounts]
 
+  // บันทึกรถตอนนี้ — หลังตรวจรายการยางผ่านหมดแล้ว และช่างกดยืนยันบันทึกแล้วเท่านั้น
+  let undoVehicle = async () => {}
+  if (pendingVehicle) {
+    const committed = await commitServiceVehicle(supabase, companyId, parsed.data.vehicle!, pendingVehicle)
+    if (!committed.ok) {
+      await rollbackCreatedTires()
+      return committed
+    }
+    vehicle_id = committed.data!.id
+    undoVehicle = committed.data!.undo
+  }
+
   const { error } = await supabase.rpc('apply_tire_ops', {
-    p_vehicle_id: vehicle_id,
+    p_vehicle_id: vehicle_id!,
     p_event_date: event_date,
     p_ops: ops,
   })
 
   if (error) {
     await rollbackCreatedTires()
+    await undoVehicle()
     return fail(error)
   }
 
   revalidateService()
   return { ok: true, data: { count: items.length } }
-}
-
-/* ============================================================
- * หน้าช่าง: คีย์ทะเบียนแล้วเริ่มงานได้เลย
- * ============================================================ */
-
-/** รถใหม่จากหน้าช่าง: ต้องมีทะเบียน (ตามรูปแบบมาตรฐาน + จังหวัด) หรือชื่อเรียกอย่างใดอย่างหนึ่ง · เลือกรถเดิมด้วย vehicle_id ไม่ต้องตรวจ */
-const serviceVehicleSchema = z.object({
-  /** ลูกค้าที่ร้านค้าเลือก — แอดมิน/ช่างไม่ต้องส่ง */
-  company_id: z.string().uuid().optional(),
-  vehicle_id: z.string().uuid().optional(),
-  ...vehicleIdentityFields,
-  axle_type: z.string().trim().min(1, 'กรุณาเลือกประเภทรถ').max(30),
-}).superRefine((data, ctx) => {
-  if (!data.vehicle_id) refineVehicleIdentity(true)(data, ctx)
-}).transform(normalizeVehicleIdentity)
-
-export type ServiceVehicleInput = z.input<typeof serviceVehicleSchema>
-
-export interface ServiceVehicleResult {
-  id: string
-  plate_no: string | null
-  nickname: string | null
-  province: string | null
-  axle_type: string
-  current_mileage: number
-  /** true = เพิ่งสร้างรถคันนี้ให้จากหน้าช่าง */
-  created: boolean
-}
-
-/**
- * หา (หรือสร้าง) รถจากทะเบียน หรือชื่อเรียก (รถไม่มีทะเบียน) ที่ช่างคีย์หน้างาน แล้วตั้งประเภทรถให้ตรงกับที่เลือก
- *
- * ช่างทำงานกับรถที่แอดมินยังไม่ได้บันทึกไว้ได้ ระบบจะสร้างให้อัตโนมัติ
- * เพื่อไม่ให้ต้องรอแอดมินหน้างาน (RLS จำกัดให้อยู่ในบริษัทของช่างเองอยู่แล้ว)
- *
- * @param input รหัสรถเดิม หรือทะเบียน+จังหวัด หรือชื่อเรียก พร้อมรหัสประเภทเพลาที่ช่างเลือก
- */
-export async function ensureServiceVehicleAction(
-  input: ServiceVehicleInput,
-): Promise<ActionResult<ServiceVehicleResult>> {
-  const parsed = serviceVehicleSchema.safeParse(input)
-  if (!parsed.success) return zodFail(parsed.error)
-  const data = parsed.data
-
-  // แอดมิน/ช่าง = บริษัทตัวเอง · ร้านค้า = ลูกค้าที่เลือก (ต้องอยู่ภายใต้ร้าน)
-  const scope = await resolveServiceScope(data.company_id)
-  if (!scope.ok) return scope
-  const company = { id: scope.companyId }
-
-  const supabase = await createClient()
-
-  const { data: axleType, error: axleTypeError } = await supabase
-    .from('axle_types')
-    .select('code, is_active')
-    .eq('code', data.axle_type)
-    .maybeSingle()
-  if (axleTypeError) return fail(axleTypeError)
-  if (!axleType?.is_active) {
-    return { ok: false, error: 'ประเภทรถนี้ถูกปิดใช้งานแล้ว — แจ้งแอดมินเพื่อเปิดใช้งาน' }
-  }
-
-  let vehicleQuery = supabase.from('vehicles')
-    .select('id, plate_no, nickname, province, axle_type, current_mileage, is_active')
-    .eq('company_id', company.id)
-  if (data.vehicle_id) {
-    vehicleQuery = vehicleQuery.eq('id', data.vehicle_id)
-  } else if (data.plate_no) {
-    vehicleQuery = vehicleQuery.eq('plate_no', data.plate_no).eq('province', data.province ?? '')
-  } else {
-    // รถไม่มีทะเบียน: ชื่อเรียกไม่ซ้ำกันในบริษัท (ไม่สนตัวพิมพ์เล็ก–ใหญ่) — escape อักขระพิเศษของ LIKE
-    const literal = (data.nickname ?? '').replace(/[\\%_]/g, '\\$&')
-    vehicleQuery = vehicleQuery.is('plate_no', null).ilike('nickname', literal)
-  }
-  const { data: existing, error: findError } = await vehicleQuery.maybeSingle()
-  if (findError) return fail(findError)
-
-  if (data.vehicle_id && !existing) return { ok: false, error: 'ไม่พบรถที่เลือก หรือคุณไม่มีสิทธิ์' }
-  if (existing && !existing.is_active) return { ok: false, error: 'รถคันนี้ถูกปิดใช้งานแล้ว' }
-
-  if (existing) {
-    // เปลี่ยนประเภทรถได้เฉพาะตอนที่ยังไม่มียางติดตั้งอยู่ ไม่งั้นตำแหน่งล้อเดิมจะเพี้ยน
-    if (existing.axle_type !== data.axle_type) {
-      const { count, error: countError } = await supabase
-        .from('tires')
-        .select('id', { count: 'exact', head: true })
-        .eq('vehicle_id', existing.id)
-        .eq('status', 'mounted')
-      if (countError) return fail(countError)
-      if ((count ?? 0) > 0) {
-        return {
-          ok: false,
-          error:
-            `รถคันนี้บันทึกไว้เป็นประเภทอื่น และมียางติดตั้งอยู่ ${count} เส้น ` +
-            'จึงเปลี่ยนประเภทรถจากหน้าช่างไม่ได้ — แจ้งแอดมินให้แก้ข้อมูลรถ',
-        }
-      }
-
-      const { error: updateError } = await supabase
-        .from('vehicles')
-        .update({ axle_type: data.axle_type })
-        .eq('id', existing.id)
-      if (updateError) return fail(updateError)
-    }
-
-    revalidateService()
-    return {
-      ok: true,
-      data: { ...existing, axle_type: data.axle_type, created: false },
-    }
-  }
-
-  const { data: created, error: createError } = await supabase
-    .from('vehicles')
-    .insert({
-      company_id: company.id,
-      plate_no: data.plate_no,
-      nickname: data.nickname,
-      province: data.province,
-      axle_type: data.axle_type,
-      current_mileage: 0,
-    })
-    .select('id, plate_no, nickname, province, axle_type, current_mileage, is_active')
-    .single()
-
-  if (createError) {
-    const duplicate = vehicleUniqueViolation(createError)
-    if (duplicate) return { ok: false, error: `${duplicate.error} — ลองค้นหาใหม่อีกครั้ง` }
-    return fail(createError)
-  }
-
-  revalidateService()
-  return { ok: true, data: { ...created, created: true } }
 }
 
 function revalidateService() {

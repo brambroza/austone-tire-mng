@@ -20,7 +20,7 @@ import {
 } from '@/lib/utils'
 import { IMPORT_NOTE_MAX, OTHER_BRAND, isOtherBrand } from '@/lib/tire-import'
 import { buildShopMountGrant, tireMatchesGrant } from '@/lib/shop-rules'
-import { applyServiceBatchAction, ensureServiceVehicleAction } from './actions'
+import { applyServiceBatchAction, checkServiceVehicleAction, type ServiceVehicleInput } from './actions'
 import type { AxleCategory, AxleType } from '@/lib/database.types'
 
 /* ------------------------------------------------------------------ types */
@@ -336,6 +336,10 @@ export function ServiceWizard({
   const nameOnly = isNewVehicle && platePrefix.trim() === '' && plateNumber.trim() === ''
   /** ป้ายชื่อรถที่กำลังทำงาน — รถเดิม / ทะเบียนที่คีย์ / ชื่อเรียกที่คีย์ */
   const pendingLabel = vehicle ? vehicleLabel(vehicle) : nameOnly ? newNickname.trim() : plateNo
+  /** มีรถให้ทำงานแล้ว — รถเดิมในระบบ หรือรถใหม่ที่จะสร้างตอนยืนยันบันทึก */
+  const hasVehicle = Boolean(vehicle) || isNewVehicle
+  /** รถใหม่ หรือรถเดิมที่เปลี่ยนแบบรถ — ยังไม่บันทึก รอบันทึกพร้อมงานยางตอนยืนยัน */
+  const vehiclePending = isNewVehicle || (vehicle !== null && vehicle.axle_type !== axleTypeCode)
   const axleType = axleTypes.find((t) => t.code === axleTypeCode) ?? null
   const layout = getLayout(axleTypeCode, axleTypes)
 
@@ -714,17 +718,27 @@ export function ServiceWizard({
     setStep('category')
   }
 
-  /** เลือกแบบรถแล้วผูกกับทะเบียนหรือชื่อเรียก (สร้างรถใหม่ให้ถ้ายังไม่มีในระบบ) */
-  async function selectAxleType(code: string) {
-    setError(null)
-    setSaving(true)
-    const result = await ensureServiceVehicleAction({
-      company_id: companyId,
+  /** ข้อมูลรถที่จะส่งให้ server (ทั้งตอนตรวจและตอนบันทึกจริง) */
+  function vehicleInput(code: string): ServiceVehicleInput {
+    return {
       vehicle_id: vehicle?.id,
       plate_no: vehicle ? vehicle.plate_no : nameOnly ? null : plateNo,
       nickname: isNewVehicle ? newNickname : undefined,
       province: vehicle ? vehicle.province : nameOnly ? null : province,
       axle_type: code,
+    }
+  }
+
+  /**
+   * เลือกแบบรถ — ตรวจกับระบบอย่างเดียว ยังไม่บันทึก
+   * รถใหม่/การเปลี่ยนแบบรถจะบันทึกพร้อมงานยางตอนช่างกดยืนยันบันทึกเท่านั้น
+   */
+  async function selectAxleType(code: string) {
+    setError(null)
+    setSaving(true)
+    const result = await checkServiceVehicleAction({
+      company_id: companyId,
+      vehicle: vehicleInput(code),
     })
     setSaving(false)
 
@@ -733,23 +747,19 @@ export function ServiceWizard({
       return
     }
 
-    const data = result.data!
-    setAxleTypeCode(data.axle_type)
-    setVehicle({
-      id: data.id,
-      plate_no: data.plate_no,
-      nickname: data.nickname,
-      province: data.province,
-      brand: null,
-      model: null,
-      axle_type: data.axle_type,
-      current_mileage: data.current_mileage,
-      // รถเดิมคงรูปไว้ · รถที่เพิ่งสร้างยังไม่มีรูป
-      photo_url: vehicle?.id === data.id ? vehicle.photo_url ?? null : null,
-    })
-    setIsNewVehicle(false)
+    const found = result.data!.vehicle
+    setAxleTypeCode(result.data!.axle_type)
+    if (found) {
+      // ทะเบียน/ชื่อเรียกที่คีย์มีอยู่ในระบบแล้ว (หรือเป็นรถที่เลือกไว้) — ใช้คันเดิม
+      setVehicle({
+        ...found,
+        brand: vehicle?.id === found.id ? vehicle.brand : null,
+        model: vehicle?.id === found.id ? vehicle.model : null,
+        photo_url: vehicle?.id === found.id ? vehicle.photo_url ?? null : null,
+      })
+      setIsNewVehicle(false)
+    }
     setStep('odometer')
-    router.refresh()
   }
 
   /** แตะล้อบนผัง → เลือก/ยกเลิกล้อนั้นในชุดที่จะเปลี่ยน */
@@ -896,21 +906,24 @@ export function ServiceWizard({
 
   /** กดปุ่มบันทึก — เปิดกล่องสรุปให้ยืนยันก่อน ยังไม่ยิงเข้าระบบ */
   function handleSave() {
-    if (!vehicle || positions.length === 0 || incompletePositions.length > 0) return
+    if (!hasVehicle || !axleTypeCode || positions.length === 0 || incompletePositions.length > 0) return
     setError(null)
     setConfirmOpen(true)
   }
 
   /** บันทึกทุกล้อในชุด (ถอด + ใส่) ในทรานแซกชันเดียว — เรียกหลังช่างกดยืนยัน */
   async function confirmSave() {
-    if (!vehicle || positions.length === 0 || incompletePositions.length > 0) return
+    if (!hasVehicle || !axleTypeCode || positions.length === 0 || incompletePositions.length > 0) return
     setSaving(true)
     setError(null)
 
     const wheelCount = positions.length
     const result = await applyServiceBatchAction({
       company_id: companyId,
-      vehicle_id: vehicle.id,
+      // รถใหม่/เปลี่ยนแบบรถ ส่งข้อมูลรถไปบันทึกพร้อมกัน · รถเดิมส่งแค่รหัส
+      ...(vehiclePending || !vehicle
+        ? { vehicle: vehicleInput(axleTypeCode) }
+        : { vehicle_id: vehicle.id }),
       odometer: Number(odometer),
       event_date: todayISO(),
       items: buildItems(),
@@ -1119,8 +1132,8 @@ export function ServiceWizard({
           description={
             isNewVehicle
               ? nameOnly
-                ? `ชื่อเรียก ${newNickname.trim()} ยังไม่มีในระบบ — ระบบจะสร้างรถคันนี้ให้ (ไม่มีทะเบียน)`
-                : `ทะเบียน ${plateNo} ยังไม่มีในระบบ — ระบบจะสร้างรถคันนี้ให้`
+                ? `ชื่อเรียก ${newNickname.trim()} ยังไม่มีในระบบ — ระบบจะสร้างรถคันนี้ให้ตอนยืนยันบันทึก (ไม่มีทะเบียน)`
+                : `ทะเบียน ${plateNo} ยังไม่มีในระบบ — ระบบจะสร้างรถคันนี้ให้ตอนยืนยันบันทึก`
               : vehicleLabel(vehicle)
           }
         >
@@ -1276,7 +1289,7 @@ export function ServiceWizard({
       )}
 
       {/* --------------------------------------- ขั้นที่ 5: ตำแหน่งล้อ */}
-      {step === 'wheel' && vehicle && (
+      {step === 'wheel' && hasVehicle && (
         <StepCard
           title="เลือกตำแหน่งล้อ"
           description={`${layout.name} · แตะล้อที่จะเปลี่ยนยาง เลือกได้หลายล้อในครั้งเดียว`}
@@ -1291,7 +1304,7 @@ export function ServiceWizard({
           )}
 
           <WheelDiagram
-            axleType={vehicle.axle_type}
+            axleType={axleTypeCode}
             axleTypes={axleTypes}
             // ไม่โชว์ยางเดิมบนผัง — ทุกล้อว่างเสมอ ช่างเลือกแล้วคีย์ใหม่
             slots={{}}
@@ -1497,7 +1510,7 @@ export function ServiceWizard({
       {isNewVehicle && step === 'category' && (
         <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-ink-400">
           <MapPin className="size-3.5" />
-          {nameOnly ? 'รถใหม่จะถูกบันทึกเข้าระบบด้วยชื่อเรียก (ไม่มีทะเบียน) แอดมินเพิ่มทะเบียนภายหลังได้' : 'รถใหม่จะถูกบันทึกเข้าระบบด้วยทะเบียนและจังหวัดที่เลือก'}
+          {nameOnly ? 'รถใหม่จะถูกบันทึกเข้าระบบด้วยชื่อเรียก (ไม่มีทะเบียน) เมื่อกดยืนยันบันทึก แอดมินเพิ่มทะเบียนภายหลังได้' : 'รถใหม่จะถูกบันทึกเข้าระบบด้วยทะเบียนและจังหวัดที่เลือก เมื่อกดยืนยันบันทึก'}
         </p>
       )}
 
@@ -1547,6 +1560,11 @@ export function ServiceWizard({
             )
           })}
         </ul>
+        {vehiclePending && axleType && (
+          <p className="mt-4 rounded-xl bg-brand-50 px-4 py-3 text-sm text-ink-700">
+            {isNewVehicle ? 'เพิ่มรถใหม่เข้าระบบ' : 'เปลี่ยนแบบรถเป็น'} · {CATEGORY_LABEL[axleType.category]} {axleType.name}
+          </p>
+        )}
         <p className="mt-4 text-sm text-ink-500">
           บันทึกแล้วแก้ไขเองไม่ได้ ตรวจให้ครบก่อนกดยืนยัน
         </p>
